@@ -1,29 +1,29 @@
 <?php
 
 //基本设置---------------------------------------------------------------------------------------------------------------
-$_ENV['key'] = 'ChangeMe';     // Cookie加密密钥，请务必修改此key为随机字符串
+$_ENV['key'] = 'dhkkvsdghjklmnbvfhjmnbvbj';     // Cookie加密密钥，请务必修改此key为随机字符串
 $_ENV['pwdMethod'] = 'bcrypt'; // 密码加密 可选 bcrypt, argon2i, argon2id
 $_ENV['salt'] = '';            // bcrypt/argon2i/argon2id 会忽略此项
 
 $_ENV['debug'] = false;                  // debug模式开关，生产环境请保持为false
-$_ENV['appName'] = 'NeXT Panel';         // 站点名称
-$_ENV['baseUrl'] = 'https://example.com'; // 站点地址，必须以https://开头，不要以/结尾
+$_ENV['appName'] = 'Zenith Flow';         // 站点名称
+$_ENV['baseUrl'] = 'https://www.zenith-flow.com'; // 站点地址，必须以https://开头，不要以/结尾
 
 // WebAPI
 $_ENV['webAPI'] = true;                // 是否开启WebAPI功能
 $_ENV['webAPIUrl'] = $_ENV['baseUrl']; // WebAPI地址，如需和站点地址相同，请不要修改
-$_ENV['muKey'] = 'ChangeMe';           // WebAPI密钥，用于节点服务端与面板通信，请务必修改此key为随机字符串
-$_ENV['checkNodeIp'] = true;           // 是否webapi验证节点ip
+$_ENV['muKey'] = 'asdfghjklqwertyuiop';           // WebAPI密钥，用于节点服务端与面板通信，请务必修改此key为随机字符串
+$_ENV['checkNodeIp'] = false;           // 是否webapi验证节点ip
 
 //数据库设置--------------------------------------------------------------------------------------------------------------
 // db_host|db_socket 二选一，若设置 db_socket 则 db_host 会被忽略，不用请留空
 // db_host 例: localhost（可解析的主机名）, 127.0.0.1（IP 地址）
 // db_socket 例：/var/run/mysqld/mysqld.sock（需使用绝对地址）
-$_ENV['db_host'] = '';
+$_ENV['db_host'] = '127.0.0.1';
 $_ENV['db_socket'] = '';
 $_ENV['db_database'] = 'nextpanel'; // 数据库名
-$_ENV['db_username'] = 'root';    // 数据库用户名
-$_ENV['db_password'] = 'nextpanel'; // 用户密码
+$_ENV['db_username'] = 'nextpanel';    // 数据库用户名
+$_ENV['db_password'] = ''; // 用户密码
 $_ENV['db_port'] = '3306';        // 端口
 #读写分离相关配置
 $_ENV['enable_db_rw_split'] = false; // 是否开启读写分离
@@ -97,7 +97,7 @@ $_ENV['enable_login_bind_device'] = true; //是否将登陆线程和设备绑定
 $_ENV['rememberMeDuration'] = 7;          //登录时记住账号时长天数
 $_ENV['timeZone'] = 'Asia/Taipei';        //需使用 PHP 兼容的时区格式
 $_ENV['theme'] = 'tabler';                //默认主题
-$_ENV['locale'] = 'zh_TW';                //Default site language, zh_CN, zh_TW, en_US, ja_JP
+$_ENV['locale'] = 'zh_CN';                //Default site language, zh_CN, zh_TW, en_US, ja_JP
 $_ENV['jump_delay'] = 1000;               //跳转延时，单位ms
 $_ENV['keep_connect'] = false;            // 流量耗尽用户限速至 1Mbps
 
@@ -108,9 +108,9 @@ $_ENV['jsdelivr_url'] = 'fastly.jsdelivr.net';
 $_ENV['sentry_dsn'] = '';
 // Maxmind GeoIP2 database
 //TODO: move these settings to DB
-$_ENV['maxmind_account_id'] = '';
+$_ENV['maxmind_account_id'] = '1052072';
 $_ENV['maxmind_license_key'] = '';
-$_ENV['geoip_locale'] = 'en';
+$_ENV['geoip_locale'] = 'zh-CN';
 // ClientDownload 命令解决 API 访问频率高而被限制使用的 Github access token
 $_ENV['github_access_token'] = '';
 // use Cloudflare R2 for clients download
