@@ -6,8 +6,8 @@ $_ENV['pwdMethod'] = 'bcrypt'; // 密码加密 可选 bcrypt, argon2i, argon2id
 $_ENV['salt'] = '';            // bcrypt/argon2i/argon2id 会忽略此项
 
 $_ENV['debug'] = false;                  // debug模式开关，生产环境请保持为false
-$_ENV['appName'] = 'Zenith Flow';         // 站点名称
-$_ENV['baseUrl'] = 'https://www.zenith-flow.com'; // 站点地址，必须以https://开头，不要以/结尾
+$_ENV['appName'] = '';         // 站点名称
+$_ENV['baseUrl'] = 'https://www.example.com'; // 站点地址，必须以https://开头，不要以/结尾
 
 // WebAPI
 $_ENV['webAPI'] = true;                // 是否开启WebAPI功能
