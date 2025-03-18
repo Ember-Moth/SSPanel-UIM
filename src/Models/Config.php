@@ -6,6 +6,7 @@ namespace App\Models;
 
 use Illuminate\Database\Query\Builder;
 use Illuminate\Database\QueryException;
+use Illuminate\Database\Eloquent\Model;
 use function is_array;
 use function json_decode;
 use function json_encode;
@@ -27,74 +28,59 @@ final class Config extends Model
     protected $connection = 'default';
     protected $table = 'config';
 
-    public static function obtain($item): bool|int|array|string
+    public static function obtain(string $item): bool|int|array|string|null
     {
-        $config = (new Config())->where('item', $item)->first();
+        $config = (new self())->where('item', $item)->first();
+
+        if (!$config) {
+            return null;
+        }
 
         return match ($config->type) {
             'bool' => (bool) $config->value,
             'int' => (int) $config->value,
-            'array' => json_decode($config->value),
+            'array' => json_decode($config->value, true), // 确保返回数组
             default => (string) $config->value,
         };
     }
 
-    public static function getClass($class): array
+    public static function getClass(string $class): array
     {
-        $configs = [];
-        $all_configs = (new Config())->where('class', $class)->get();
-
-        foreach ($all_configs as $config) {
-            $configs[$config->item] = match ($config->type) {
+        return (new self())->where('class', $class)->get()->mapWithKeys(function ($config) {
+            return [$config->item => match ($config->type) {
                 'bool' => (bool) $config->value,
                 'int' => (int) $config->value,
-                'array' => json_decode($config->value),
+                'array' => json_decode($config->value, true),
                 default => (string) $config->value,
-            };
-        }
-
-        return $configs;
+            }];
+        })->toArray();
     }
 
-    public static function getItemListByClass($class): array
+    public static function getItemListByClass(string $class): array
     {
-        $items = [];
-        $all_configs = (new Config())->where('class', $class)->get();
-
-        foreach ($all_configs as $config) {
-            $items[] = $config->item;
-        }
-
-        return $items;
+        return (new self())->where('class', $class)->pluck('item')->toArray();
     }
 
     public static function getPublicConfig(): array
     {
-        $configs = [];
-        $all_configs = (new Config())->where('is_public', '1')->get();
-
-        foreach ($all_configs as $config) {
-            $configs[$config->item] = match ($config->type) {
+        return (new self())->where('is_public', '1')->get()->mapWithKeys(function ($config) {
+            return [$config->item => match ($config->type) {
                 'bool' => (bool) $config->value,
                 'int' => (int) $config->value,
-                'array' => json_decode($config->value),
+                'array' => json_decode($config->value, true),
                 default => (string) $config->value,
-            };
-        }
-
-        return $configs;
+            }];
+        })->toArray();
     }
 
     public static function set(string $item, mixed $value): bool
     {
-        $value = is_array($value) ? json_encode($value) : $value;
+        $value = is_array($value) ? json_encode($value) : (string) $value;
 
         try {
-            (new Config())->where('item', $item)->update(['value' => $value]);
+            return (bool) (new self())->updateOrInsert(['item' => $item], ['value' => $value]);
         } catch (QueryException $e) {
             return false;
         }
-
-        return true;
     }
 }
