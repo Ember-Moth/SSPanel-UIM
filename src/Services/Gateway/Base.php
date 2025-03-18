@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\User;
 use App\Models\UserMoneyLog;
+use App\Models\Order; // 新增 Order 模型引用
 use App\Services\Reward;
 use App\Utils\Tools;
 use Psr\Http\Message\ResponseInterface;
@@ -53,40 +54,54 @@ abstract class Base
     public function postPayment(string $trade_no): void
     {
         $paylist = (new Paylist())->where('tradeno', $trade_no)->first();
+        if ($paylist === null) {
+            return; // 若支付记录不存在，直接返回
+        }
 
-        if ($paylist?->status === 0) {
+        // 更新支付记录状态
+        if ($paylist->status === 0) {
             $paylist->datetime = time();
             $paylist->status = 1;
             $paylist->save();
         }
 
-        $invoice = (new Invoice())->where('id', $paylist?->invoice_id)->first();
-
-        if (($invoice?->status === 'unpaid' || $invoice?->status === 'partially_paid') &&
-            (int) $paylist?->total >= (int) $invoice?->price) {
+        // 更新账单状态
+        $invoice = (new Invoice())->where('id', $paylist->invoice_id)->first();
+        if ($invoice !== null &&
+            ($invoice->status === 'unpaid' || $invoice->status === 'partially_paid') &&
+            (int) $paylist->total >= (int) $invoice->price) {
             $invoice->status = 'paid_gateway';
             $invoice->update_time = time();
             $invoice->pay_time = time();
             $invoice->save();
+
+            // 更新订单状态为已激活
+            $order = (new Order())->where('id', $invoice->order_id)->first();
+            if ($order !== null && $order->status === 'pending_payment') {
+                $order->status = 'activated'; // 支付成功后立即激活
+                $order->update_time = time();
+                $order->save();
+            }
         }
 
-        $user = (new User())->find($paylist?->userid);
-
-        if ($paylist?->total > $invoice?->price) {
+        // 处理用户余额
+        $user = (new User())->find($paylist->userid);
+        if ($paylist->total > $invoice?->price) {
             $money_before = $user->money;
-            $user->money += $paylist?->total - $invoice?->price;
+            $user->money += $paylist->total - $invoice->price;
             $user->save();
             (new UserMoneyLog())->add(
                 $user->id,
                 $money_before,
                 $user->money,
-                $paylist?->total - $invoice?->price,
+                $paylist->total - $invoice->price,
                 '超额支付账单 #' . $invoice?->id
             );
         }
 
+        // 发放推荐奖励
         if ($user !== null && $user->ref_by > 0 && Config::obtain('invite_mode') === 'reward') {
-            Reward::issuePaybackReward($user->id, $user->ref_by, $invoice?->price, $paylist?->invoice_id);
+            Reward::issuePaybackReward($user->id, $user->ref_by, $invoice?->price, $paylist->invoice_id);
         }
     }
 
