@@ -8,6 +8,7 @@ use App\Controllers\BaseController;
 use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\UserMoneyLog;
+use App\Models\Order; // 新增 Order 模型引用
 use App\Services\Payment;
 use App\Utils\Tools;
 use Exception;
@@ -120,7 +121,6 @@ final class InvoiceController extends BaseController
             } else {
                 $paid = $user->money;
                 $invoice->status = 'partially_paid';
-                $invoice->price -= $paid;
                 $invoice_content = json_decode($invoice->content);
                 $invoice_content[] = [
                     'content_id' => count($invoice_content),
@@ -144,6 +144,16 @@ final class InvoiceController extends BaseController
             $invoice->update_time = time();
             $invoice->pay_time = time();
             $invoice->save();
+
+            // 支付成功后更新 Order 状态
+            if ($invoice->status === 'paid_balance') {
+                $order = (new Order())->where('id', $invoice->order_id)->first();
+                if ($order && $order->status === 'pending_payment') {
+                    $order->status = 'activated';
+                    $order->update_time = time();
+                    $order->save();
+                }
+            }
         } else {
             return $response->withJson([
                 'ret' => 0,
