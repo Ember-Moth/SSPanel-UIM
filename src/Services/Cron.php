@@ -9,24 +9,18 @@ use App\Models\Config;
 use App\Models\DetectLog;
 use App\Models\EmailQueue;
 use App\Models\HourlyUsage;
-use App\Models\Invoice;
 use App\Models\Node;
 use App\Models\OnlineLog;
-use App\Models\Order;
 use App\Models\Paylist;
 use App\Models\SubscribeLog;
 use App\Models\User;
-use App\Models\UserMoneyLog;
+use App\Services\IM\Telegram;
 use App\Utils\Tools;
-use DateTime;
-use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Telegram\Bot\Exceptions\TelegramSDKException;
 use function array_map;
 use function date;
-use function in_array;
-use function json_decode;
 use function str_replace;
 use function strtotime;
 use function time;
@@ -36,651 +30,363 @@ final class Cron
 {
     public static function cleanDb(): void
     {
-        (new SubscribeLog())->where(
-            'request_time',
-            '<',
-            time() - 86400 * Config::obtain('subscribe_log_retention_days')
-        )->delete();
-        (new HourlyUsage())->where(
-            'date',
-            '<',
-            date('Y-m-d', time() - 86400 * Config::obtain('traffic_log_retention_days'))
-        )->delete();
-        (new DetectLog())->where('datetime', '<', time() - 86400 * 3)->delete();
-        (new EmailQueue())->where('time', '<', time() - 86400)->delete();
-        (new OnlineLog())->where('last_time', '<', time() - 86400)->delete();
+        $time = time();
+        $thresholds = [
+            (new SubscribeLog())->where('request_time', '<', $time - 86400 * Config::obtain('subscribe_log_retention_days')),
+            (new HourlyUsage())->where('date', '<', date('Y-m-d', $time - 86400 * Config::obtain('traffic_log_retention_days'))),
+            (new DetectLog())->where('datetime', '<', $time - 86400 * 3),
+            (new EmailQueue())->where('time', '<', $time - 86400),
+            (new OnlineLog())->where('last_time', '<', $time - 86400),
+        ];
 
-        echo Tools::toDateTime(time()) . ' 数据库清理完成' . PHP_EOL;
+        foreach ($thresholds as $query) {
+            $query->delete();
+        }
+
+        echo Tools::toDateTime($time) . ' 数据库清理完成' . PHP_EOL;
     }
 
     public static function detectInactiveUser(): void
     {
-        $checkin_days = Config::obtain('detect_inactive_user_checkin_days');
-        $login_days = Config::obtain('detect_inactive_user_login_days');
-        $use_days = Config::obtain('detect_inactive_user_use_days');
+        $time = time();
+        $config = [
+            'checkin' => Config::obtain('detect_inactive_user_checkin_days') * 86400,
+            'login' => Config::obtain('detect_inactive_user_login_days') * 86400,
+            'use' => Config::obtain('detect_inactive_user_use_days') * 86400,
+        ];
 
-        (new User())->where('is_admin', 0)
+        $baseQuery = (new User())->where('is_admin', 0);
+        
+        $baseQuery->clone()
             ->where('is_inactive', 0)
-            ->where('last_check_in_time', '<', time() - 86400 * $checkin_days)
-            ->where('last_login_time', '<', time() - 86400 * $login_days)
-            ->where('last_use_time', '<', time() - 86400 * $use_days)
+            ->where('last_check_in_time', '<', $time - $config['checkin'])
+            ->where('last_login_time', '<', $time - $config['login'])
+            ->where('last_use_time', '<', $time - $config['use'])
             ->update(['is_inactive' => 1]);
 
-        (new User())->where('is_admin', 0)
+        $baseQuery->clone()
             ->where('is_inactive', 1)
-            ->where('last_check_in_time', '>', time() - 86400 * $checkin_days)
-            ->where('last_login_time', '>', time() - 86400 * $login_days)
-            ->where('last_use_time', '>', time() - 86400 * $use_days)
+            ->where('last_check_in_time', '>', $time - $config['checkin'])
+            ->where('last_login_time', '>', $time - $config['login'])
+            ->where('last_use_time', '>', $time - $config['use'])
             ->update(['is_inactive' => 0]);
 
-        echo Tools::toDateTime(time()) .
-            ' 检测到 ' . (new User())->where('is_inactive', 1)->count() . ' 个账户处于闲置状态' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 检测到 ' . $baseQuery->where('is_inactive', 1)->count() . ' 个账户处于闲置状态' . PHP_EOL;
     }
 
     public static function detectNodeOffline(): void
     {
         $nodes = (new Node())->where('type', 1)->get();
+        $time = time();
+        $telegramConfig = [
+            'offline' => Config::obtain('telegram_node_offline'),
+            'online' => Config::obtain('telegram_node_online'),
+            'offline_text' => Config::obtain('telegram_node_offline_text'),
+            'online_text' => Config::obtain('telegram_node_online_text'),
+        ];
 
         foreach ($nodes as $node) {
-            if ($node->getNodeOnlineStatus() >= 0 && $node->online === 1) {
+            $status = $node->getNodeOnlineStatus();
+            if ($status >= 0 && $node->online === 1) {
                 continue;
             }
 
-            if ($node->getNodeOnlineStatus() === -1 && $node->online === 1) {
-                echo 'Send Node Offline Email to admin users' . PHP_EOL;
+            $telegram = new Telegram();
+            $appName = $_ENV['appName'];
 
+            if ($status === -1 && $node->online === 1) {
+                echo 'Send Node Offline Email to admin users' . PHP_EOL;
                 try {
-                    Notification::notifyAdmin(
-                        $_ENV['appName'] . '-系统警告',
-                        '管理员你好，系统发现节点 ' . $node->name . ' 掉线了，请你及时处理。'
-                    );
+                    Notification::notifyAdmin("{$appName}-系统警告", "管理员你好，系统发现节点 {$node->name} 掉线了，请你及时处理。");
+                    if ($telegramConfig['offline']) {
+                        $telegram->send(0, str_replace('%node_name%', $node->name, $telegramConfig['offline_text']));
+                    }
                 } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
                     echo $e->getMessage() . PHP_EOL;
                 }
-
-                if (Config::obtain('im_bot_group_notify_node_offline')) {
-                    try {
-                        Notification::notifyUserGroup(
-                            str_replace(
-                                '%node_name%',
-                                $node->name,
-                                I18n::trans('bot.node_offline', $_ENV['locale'])
-                            ),
-                        );
-                    } catch (TelegramSDKException | GuzzleException $e) {
-                        echo $e->getMessage() . PHP_EOL;
-                    }
-                }
-
                 $node->online = 0;
                 $node->save();
-
                 continue;
             }
 
-            if ($node->getNodeOnlineStatus() === 1 && $node->online === 0) {
+            if ($status === 1 && $node->online === 0) {
                 echo 'Send Node Online Email to admin user' . PHP_EOL;
-
                 try {
-                    Notification::notifyAdmin(
-                        $_ENV['appName'] . '-系统提示',
-                        '管理员你好，系统发现节点 ' . $node->name . ' 恢复上线了。'
-                    );
+                    Notification::notifyAdmin("{$appName}-系统提示", "管理员你好，系统发现节点 {$node->name} 恢复上线了。");
+                    if ($telegramConfig['online']) {
+                        $telegram->send(0, str_replace('%node_name%', $node->name, $telegramConfig['online_text']));
+                    }
                 } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
                     echo $e->getMessage() . PHP_EOL;
                 }
-
-                if (Config::obtain('im_bot_group_notify_node_online')) {
-                    try {
-                        Notification::notifyUserGroup(
-                            str_replace(
-                                '%node_name%',
-                                $node->name,
-                                I18n::trans('bot.node_online', $_ENV['locale'])
-                            ),
-                        );
-                    } catch (TelegramSDKException | GuzzleException $e) {
-                        echo $e->getMessage() . PHP_EOL;
-                    }
-                }
-
                 $node->online = 1;
                 $node->save();
             }
         }
 
-        echo Tools::toDateTime(time()) . ' 节点离线检测完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 节点离线检测完成' . PHP_EOL;
     }
 
     public static function expirePaidUserAccount(): void
     {
+        $time = time();
         $paidUsers = (new User())->where('class', '>', 0)->get();
+        $appName = $_ENV['appName'];
 
         foreach ($paidUsers as $user) {
-            if (strtotime($user->class_expire) < time()) {
-                $text = '你好，系统发现你的账号等级已经过期了。';
-                $reset_traffic = $_ENV['class_expire_reset_traffic'];
-
-                if ($reset_traffic >= 0) {
-                    $user->transfer_enable = Tools::gbToB($reset_traffic);
-                    $text .= '流量已经被重置为' . $reset_traffic . 'GB。';
-                }
-
-                try {
-                    Notification::notifyUser($user, $_ENV['appName'] . '-你的账号等级已经过期了', $text);
-                } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
-                    echo $e->getMessage() . PHP_EOL;
-                }
-
-                $user->u = 0;
-                $user->d = 0;
-                $user->transfer_today = 0;
-                $user->class = 0;
-                $user->save();
+            if (strtotime($user->class_expire) >= $time) {
+                continue;
             }
+
+            $resetTraffic = $_ENV['class_expire_reset_traffic'];
+            $text = '你好，系统发现你的账号等级已经过期了。';
+            if ($resetTraffic >= 0) {
+                $user->transfer_enable = Tools::toGB($resetTraffic);
+                $text .= "流量已经被重置为{$resetTraffic}GB。";
+            }
+
+            try {
+                Notification::notifyUser($user, "{$appName}-你的账号等级已经过期了", $text);
+            } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+                echo $e->getMessage() . PHP_EOL;
+            }
+
+            $user->u = $user->d = $user->transfer_today = $user->class = 0;
+            $user->save();
         }
 
-        echo Tools::toDateTime(time()) . ' 付费用户过期检测完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 付费用户过期检测完成' . PHP_EOL;
     }
 
     public static function processEmailQueue(): void
     {
-        if ((new EmailQueue())->count() === 0) {
-            echo Tools::toDateTime(time()) . ' 邮件队列为空' . PHP_EOL;
-        } else {
-            //记录当前时间戳
-            $timestamp = time();
-            //邮件队列处理
-            while (true) {
-                if (time() - $timestamp > 299) {
-                    echo Tools::toDateTime(time()) . '邮件队列处理超时，已跳过' . PHP_EOL;
-                    break;
-                }
+        $time = time();
+        $emailQueue = new EmailQueue();
 
-                DB::beginTransaction();
-                $email_queues_raw = DB::select('SELECT * FROM email_queue LIMIT 1 FOR UPDATE SKIP LOCKED');
+        if ($emailQueue->count() === 0) {
+            echo Tools::toDateTime($time) . ' 邮件队列为空' . PHP_EOL;
+            return;
+        }
 
-                if (count($email_queues_raw) === 0) {
-                    DB::commit();
-                    break;
-                }
-
-                $email_queues = array_map(static function ($value) {
-                    return (array) $value;
-                }, $email_queues_raw);
-                $email_queue = $email_queues[0];
-                echo '发送邮件至 ' . $email_queue['to_email'] . PHP_EOL;
-                DB::delete('DELETE FROM email_queue WHERE id = ?', [$email_queue['id']]);
-
-                if (Tools::isEmail($email_queue['to_email'])) {
-                    try {
-                        Mail::send(
-                            $email_queue['to_email'],
-                            $email_queue['subject'],
-                            $email_queue['template'],
-                            json_decode($email_queue['array'])
-                        );
-                    } catch (Exception|ClientExceptionInterface $e) {
-                        echo $e->getMessage();
-                    }
-                } else {
-                    echo $email_queue['to_email'] . ' 邮箱格式错误，已跳过' . PHP_EOL;
-                }
-
+        $startTime = $time;
+        while (time() - $startTime <= 299) {
+            DB::beginTransaction();
+            $email = $emailQueue->lockForUpdate()->first();
+            if (!$email) {
                 DB::commit();
+                break;
             }
 
-            echo Tools::toDateTime(time()) . ' 邮件队列处理完成' . PHP_EOL;
-        }
-    }
+            echo '发送邮件至 ' . $email->to_email . PHP_EOL;
+            $emailQueue->where('id', $email->id)->delete();
 
-    public static function processTabpOrderActivation(): void
-    {
-        $users = User::all();
-
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户已激活的TABP订单，一个用户同时只能有一个已激活的TABP订单
-            $activated_order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'activated')
-                ->where('product_type', 'tabp')
-                ->orderBy('id')
-                ->first();
-            // 获取用户账户等待激活的TABP订单
-            $pending_activation_orders = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'tabp')
-                ->orderBy('id')
-                ->get();
-            // 如果用户账户中有已激活的TABP订单，则判断是否过期
-            if ($activated_order !== null) {
-                $content = json_decode($activated_order->product_content);
-
-                if ($activated_order->update_time + $content->time * 86400 < time()) {
-                    $activated_order->status = 'expired';
-                    $activated_order->update_time = time();
-                    $activated_order->save();
-                    echo "TABP订单 #{$activated_order->id} 已过期。\n";
-                    $activated_order = null; // 先检查过期，再激活新订单，避免服务中断
+            if (Tools::isEmail($email->to_email)) {
+                try {
+                    Mail::send($email->to_email, $email->subject, $email->template, json_decode($email->array));
+                } catch (Exception|ClientExceptionInterface $e) {
+                    echo $e->getMessage() . PHP_EOL;
                 }
+            } else {
+                echo "{$email->to_email} 邮箱格式错误，已跳过" . PHP_EOL;
             }
-            // 如果用户账户中没有已激活的TABP订单，且有等待激活的TABP订单，则激活最早的等待激活TABP订单
-            if ($activated_order === null && count($pending_activation_orders) > 0) {
-                $order = $pending_activation_orders[0];
-                // 获取TABP订单内容准备激活
-                $content = json_decode($order->product_content);
-                // 激活TABP
-                $user->u = 0;
-                $user->d = 0;
-                $user->transfer_today = 0;
-                $user->transfer_enable = Tools::gbToB($content->bandwidth);
-                $user->class = $content->class;
-                $old_class_expire = new DateTime();
-                $user->class_expire = $old_class_expire
-                    ->modify('+' . $content->class_time . ' days')->format('Y-m-d H:i:s');
-                $user->node_group = $content->node_group;
-                $user->node_speedlimit = $content->speed_limit;
-                $user->node_iplimit = $content->ip_limit;
-                $user->save();
-                $order->status = 'activated';
-                $order->update_time = time();
-                $order->save();
-                echo "TABP订单 #{$order->id} 已激活。\n";
-            }
+            DB::commit();
         }
 
-        echo Tools::toDateTime(time()) . ' TABP订单激活处理完成' . PHP_EOL;
-    }
-
-    public static function processBandwidthOrderActivation(): void
-    {
-        $users = User::all();
-
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户等待激活的流量包订单
-            $order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'bandwidth')
-                ->orderBy('id')
-                ->first();
-
-            if ($order !== null) {
-                // 获取流量包订单内容准备激活
-                $content = json_decode($order->product_content);
-                // 激活流量包
-                $user->transfer_enable += Tools::gbToB($content->bandwidth);
-                $user->save();
-                $order->status = 'activated';
-                $order->update_time = time();
-                $order->save();
-                echo "流量包订单 #{$order->id} 已激活。\n";
-            }
-        }
-
-        echo Tools::toDateTime(time()) . ' 流量包订单激活处理完成' . PHP_EOL;
-    }
-
-    /**
-     * @throws Exception
-     */
-    public static function processTimeOrderActivation(): void
-    {
-        $users = User::all();
-
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户等待激活的时间包订单
-            $order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'time')
-                ->orderBy('id')
-                ->first();
-
-            if ($order !== null) {
-                $content = json_decode($order->product_content);
-                // 跳过当前账户等级不等于时间包等级的非免费用户订单
-                if ($user->class !== (int) $content->class && $user->class > 0) {
-                    continue;
-                }
-                // 激活时间包
-                $user->class = $content->class;
-                $old_class_expire = new DateTime($user->class_expire);
-                $user->class_expire = $old_class_expire
-                    ->modify('+' . $content->class_time . ' days')->format('Y-m-d H:i:s');
-                $user->node_group = $content->node_group;
-                $user->node_speedlimit = $content->speed_limit;
-                $user->node_iplimit = $content->ip_limit;
-                $user->save();
-                $order->status = 'activated';
-                $order->update_time = time();
-                $order->save();
-                echo "时间包订单 #{$order->id} 已激活。\n";
-            }
-        }
-
-        echo Tools::toDateTime(time()) . ' 时间包订单激活处理完成' . PHP_EOL;
-    }
-
-    /**
-     * @throws Exception
-     */
-    public static function processTopupOrderActivation(): void
-    {
-        // 获取等待激活的充值订单，允许同时处理多个充值订单
-        $orders = (new Order())->where('status', 'pending_activation')
-            ->where('product_type', 'topup')
-            ->orderBy('id')
-            ->get();
-
-        foreach ($orders as $order) {
-            $user_id = $order->user_id;
-            $user = (new User())->find($user_id);
-            $content = json_decode($order->product_content);
-            // 充值
-            $user->money += $content->amount;
-            $user->save();
-            $order->status = 'activated';
-            $order->update_time = time();
-            $order->save();
-            (new UserMoneyLog())->add(
-                $user_id,
-                $user->money - $content->amount,
-                $user->money,
-                $content->amount,
-                "充值订单 #{$order->id}"
-            );
-            echo "充值订单 #{$order->id} 已激活。\n";
-        }
-
-        echo Tools::toDateTime(time()) . ' 充值订单激活处理完成' . PHP_EOL;
-    }
-
-    public static function processPendingOrder(): void
-    {
-        $pending_payment_orders = (new Order())->where('status', 'pending_payment')->get();
-
-        foreach ($pending_payment_orders as $order) {
-            // 检查账单支付状态
-            $invoice = (new Invoice())->where('order_id', $order->id)->first();
-
-            if ($invoice === null) {
-                continue;
-            }
-            // 标记订单为等待激活
-            if (in_array($invoice->status, ['paid_gateway', 'paid_balance', 'paid_admin'])) {
-                $order->status = 'pending_activation';
-                $order->update_time = time();
-                $order->save();
-                echo "已标记订单 #{$order->id} 为等待激活。\n";
-                continue;
-            }
-            // 取消超时未支付的订单和关联账单，跳过账单已经部分支付的订单
-            if ($order->create_time + 86400 < time() && $invoice->status !== 'partially_paid') {
-                $order->status = 'cancelled';
-                $order->update_time = time();
-                $order->save();
-                echo "已取消超时订单 #{$order->id}。\n";
-                $invoice->status = 'cancelled';
-                $invoice->update_time = time();
-                $invoice->save();
-                echo "已取消超时账单 #{$invoice->id}。\n";
-            }
-        }
-
-        echo Tools::toDateTime(time()) . ' 等待中订单处理完成' . PHP_EOL;
+        echo Tools::toDateTime(time()) . ($time === time() ? ' 邮件队列处理超时，已跳过' : ' 邮件队列处理完成') . PHP_EOL;
     }
 
     public static function removeInactiveUserLinkAndInvite(): void
     {
-        $inactive_users = (new User())->where('is_inactive', 1)->get();
+        $time = time();
+        $inactiveUsers = (new User())->where('is_inactive', 1)->get();
 
-        foreach ($inactive_users as $user) {
+        foreach ($inactiveUsers as $user) {
             $user->removeLink();
             $user->removeInvite();
         }
 
-        echo Tools::toDateTime(time()) . ' Successfully removed inactive user\'s Link and Invite' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' Successfully removed inactive user\'s Link and Invite' . PHP_EOL;
     }
 
     public static function resetNodeBandwidth(): void
     {
-        (new Node())->where('bandwidthlimit_resetday', date('d'))->update(['node_bandwidth' => 0]);
+        $time = time();
+        (new Node())->where('bandwidthlimit_resetday', date('d', $time))->update(['node_bandwidth' => 0]);
 
-        echo Tools::toDateTime(time()) . ' 重设节点流量完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 重设节点流量完成' . PHP_EOL;
     }
 
     public static function resetTodayBandwidth(): void
     {
+        $time = time();
         (new User())->query()->update(['transfer_today' => 0]);
 
-        echo Tools::toDateTime(time()) . ' 重设用户每日流量完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 重设用户每日流量完成' . PHP_EOL;
     }
 
     public static function resetFreeUserBandwidth(): void
     {
-        $freeUsers = (new User())->where('class', 0)
-            ->where('auto_reset_day', date('d'))->get();
+        $time = time();
+        $freeUsers = (new User())->where('class', 0)->where('auto_reset_day', date('d', $time))->get();
+        $appName = $_ENV['appName'];
 
         foreach ($freeUsers as $user) {
             try {
-                Notification::notifyUser(
-                    $user,
-                    $_ENV['appName'] . '-免费流量重置通知',
-                    '你好，你的免费流量已经被重置为' . $user->auto_reset_bandwidth . 'GB。'
-                );
+                Notification::notifyUser($user, "{$appName}-免费流量重置通知", "你好，你的免费流量已经被重置为{$user->auto_reset_bandwidth}GB。");
             } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
                 echo $e->getMessage() . PHP_EOL;
             }
 
-            $user->u = 0;
-            $user->d = 0;
+            $user->u = $user->d = 0;
             $user->transfer_enable = $user->auto_reset_bandwidth * 1024 * 1024 * 1024;
             $user->save();
         }
 
-        echo Tools::toDateTime(time()) . ' 免费用户流量重置完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 免费用户流量重置完成' . PHP_EOL;
     }
 
     public static function sendDailyFinanceMail(): void
     {
-        $today = strtotime('00:00:00');
+        $time = time();
+        $today = strtotime('00:00:00', $time);
         $paylists = (new Paylist())->where('status', 1)
-            ->whereBetween('datetime', [strtotime('-1 day', $today), $today])->get();
+            ->whereBetween('datetime', [strtotime('-1 day', $today), $today])
+            ->get();
 
-        if (count($paylists) > 0) {
-            $text_html = '<table><tr><td>金额</td><td>用户ID</td><td>用户名</td><td>充值时间</td></tr>';
-
-            foreach ($paylists as $paylist) {
-                $text_html .= '<tr>';
-                $text_html .= '<td>' . $paylist->total . '</td>';
-                $text_html .= '<td>' . $paylist->userid . '</td>';
-                $text_html .= '<td>' . (new User())->find($paylist->userid)->user_name . '</td>';
-                $text_html .= '<td>' . Tools::toDateTime((int) $paylist->datetime) . '</td>';
-                $text_html .= '</tr>';
-            }
-
-            $text_html .= '</table>';
-            $text_html .= '<br>昨日总收入笔数：' . count($paylists) . '<br>昨日总收入金额：' . $paylists->sum('total');
-
-            $text_html = str_replace([
-                '<table>',
-                '<tr>',
-                '<td>',
-            ], [
-                '<table style="width: 100%;border: 1px solid black;border-collapse: collapse;">',
-                '<tr style="border: 1px solid black;padding: 5px;">',
-                '<td style="border: 1px solid black;padding: 5px;">',
-            ], $text_html);
-
-            echo 'Sending daily finance email to admin user' . PHP_EOL;
-
-            try {
-                Notification::notifyAdmin(
-                    '财务日报',
-                    $text_html,
-                    'finance.tpl'
-                );
-            } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
-                echo $e->getMessage() . PHP_EOL;
-            }
-
-            echo Tools::toDateTime(time()) . ' Successfully sent daily finance email' . PHP_EOL;
-        } else {
-            echo 'No paylist found' . PHP_EOL;
+        $textHtml = '<table border=1><tr><td>金额</td><td>用户ID</td><td>用户名</td><td>充值时间</td>';
+        foreach ($paylists as $paylist) {
+            $textHtml .= "<tr><td>{$paylist->total}</td><td>{$paylist->userid}</td><td>" .
+                (new User())->find($paylist->userid)->user_name . "</td><td>" .
+                Tools::toDateTime((int)$paylist->datetime) . "</td></tr>";
         }
+        $textHtml .= "</table><br>昨日总收入笔数：" . count($paylists) . "<br>昨日总收入金额：" . $paylists->sum('total');
+
+        echo 'Sending daily finance email to admin user' . PHP_EOL;
+        try {
+            Notification::notifyAdmin('财务日报', $textHtml, 'finance.tpl');
+        } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+            echo $e->getMessage() . PHP_EOL;
+        }
+
+        echo Tools::toDateTime($time) . ' 成功发送财务日报' . PHP_EOL;
     }
 
     public static function sendWeeklyFinanceMail(): void
     {
-        $today = strtotime('00:00:00');
+        $time = time();
+        $today = strtotime('00:00:00', $time);
         $paylists = (new Paylist())->where('status', 1)
             ->whereBetween('datetime', [strtotime('-1 week', $today), $today])
             ->get();
 
-        $text_html = '<br>上周总收入笔数：' . count($paylists) . '<br>上周总收入金额：' . $paylists->sum('total');
+        $textHtml = '<br>上周总收入笔数：' . count($paylists) . '<br>上周总收入金额：' . $paylists->sum('total');
         echo 'Sending weekly finance email to admin user' . PHP_EOL;
-
         try {
-            Notification::notifyAdmin(
-                '财务周报',
-                $text_html,
-                'finance.tpl'
-            );
+            Notification::notifyAdmin('财务周报', $textHtml, 'finance.tpl');
         } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
             echo $e->getMessage() . PHP_EOL;
         }
 
-        echo Tools::toDateTime(time()) . ' 成功发送财务周报' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 成功发送财务周报' . PHP_EOL;
     }
 
     public static function sendMonthlyFinanceMail(): void
     {
-        $today = strtotime('00:00:00');
+        $time = time();
+        $today = strtotime('00:00:00', $time);
         $paylists = (new Paylist())->where('status', 1)
             ->whereBetween('datetime', [strtotime('-1 month', $today), $today])
             ->get();
 
-        $text_html = '<br>上月总收入笔数：' . count($paylists) . '<br>上月总收入金额：' . $paylists->sum('total');
+        $textHtml = '<br>上月总收入笔数：' . count($paylists) . '<br>上月总收入金额：' . $paylists->sum('total');
         echo 'Sending monthly finance email to admin user' . PHP_EOL;
-
         try {
-            Notification::notifyAdmin(
-                '财务月报',
-                $text_html,
-                'finance.tpl'
-            );
+            Notification::notifyAdmin('财务月报', $textHtml, 'finance.tpl');
         } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
             echo $e->getMessage() . PHP_EOL;
         }
 
-        echo Tools::toDateTime(time()) . ' 成功发送财务月报' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 成功发送财务月报' . PHP_EOL;
     }
 
     public static function sendPaidUserUsageLimitNotification(): void
     {
+        $time = time();
         $paidUsers = (new User())->where('class', '>', 0)->get();
+        $limitMode = $_ENV['notify_limit_mode'];
+        $limitValue = $_ENV['notify_limit_value'];
+        $appName = $_ENV['appName'];
 
         foreach ($paidUsers as $user) {
-            $user_traffic_left = $user->transfer_enable - $user->u - $user->d;
-            $under_limit = false;
-            $unit_text = '';
+            $trafficLeft = $user->transfer_enable - $user->u - $user->d;
+            $underLimit = $limitMode === 'per'
+                ? ($trafficLeft / $user->transfer_enable * 100 < $limitValue)
+                : ($limitMode === 'mb' && Tools::flowToMB($trafficLeft) < $limitValue);
 
-            if ($_ENV['notify_limit_mode'] === 'per' &&
-                $user_traffic_left / $user->transfer_enable * 100 < $_ENV['notify_limit_value']
-            ) {
-                $under_limit = true;
-                $unit_text = '%';
-            } elseif ($_ENV['notify_limit_mode'] === 'mb' &&
-                Tools::bToMB($user_traffic_left) < $_ENV['notify_limit_value']
-            ) {
-                $under_limit = true;
-                $unit_text = 'MB';
-            }
-
-            if ($under_limit && ! $user->traffic_notified) {
+            if ($underLimit && !$user->traffic_notified) {
                 try {
                     Notification::notifyUser(
                         $user,
-                        $_ENV['appName'] . '-你的剩余流量过低',
-                        '你好，系统发现你剩余流量已经低于 ' . $_ENV['notify_limit_value'] . $unit_text . ' 。',
+                        "{$appName}-你的剩余流量过低",
+                        "你好，系统发现你剩余流量已经低于 {$limitValue}" . ($limitMode === 'per' ? '%' : 'MB') . " 。"
                     );
-
                     $user->traffic_notified = true;
                 } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
                     $user->traffic_notified = false;
                     echo $e->getMessage() . PHP_EOL;
                 }
-
                 $user->save();
-            } elseif (! $under_limit && $user->traffic_notified) {
+            } elseif (!$underLimit && $user->traffic_notified) {
                 $user->traffic_notified = false;
                 $user->save();
             }
         }
 
-        echo Tools::toDateTime(time()) . ' 付费用户用量限制提醒完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 付费用户用量限制提醒完成' . PHP_EOL;
     }
 
     public static function sendDailyTrafficReport(): void
     {
+        $time = time();
         $users = (new User())->whereIn('daily_mail_enable', [1, 2])->get();
-        $ann_latest_raw = (new Ann())->where('status', '>', 0)
-            ->orderBy('status', 'desc')
-            ->orderBy('sort')
-            ->orderBy('date', 'desc')->first();
-
-        if ($ann_latest_raw === null) {
-            $ann_latest = '<br><br>';
-        } else {
-            $ann_latest = $ann_latest_raw->content . '<br><br>';
-        }
+        $annLatest = (new Ann())->orderBy('date', 'desc')->first()?->content . '<br><br>' ?? '<br><br>';
 
         foreach ($users as $user) {
-            $user->sendDailyNotification($ann_latest);
+            $user->sendDailyNotification($annLatest);
         }
 
-        echo Tools::toDateTime(time()) . ' Successfully sent daily traffic report' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 成功发送每日流量报告' . PHP_EOL;
     }
 
-    public static function sendDailyJobNotification(): void
+    /**
+     * @throws TelegramSDKException
+     */
+    public static function sendTelegramDailyJob(): void
     {
-        try {
-            Notification::notifyUserGroup(
-                I18n::trans('bot.daily_job_run', $_ENV['locale'])
-            );
-        } catch (TelegramSDKException | GuzzleException $e) {
-            echo $e->getMessage() . PHP_EOL;
-        }
+        $time = time();
+        (new Telegram())->send(0, Config::obtain('telegram_daily_job_text'));
 
-        echo Tools::toDateTime(time()) . ' Successfully sent daily job notification' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 成功发送 Telegram 每日任务提示' . PHP_EOL;
     }
 
-    public static function sendDiaryNotification(): void
+    /**
+     * @throws TelegramSDKException
+     */
+    public static function sendTelegramDiary(): void
     {
-        try {
-            Notification::notifyUserGroup(
-                str_replace(
-                    [
-                        '%checkin_user%',
-                        '%lastday_total%',
-                    ],
-                    [
-                        Analytics::getTodayCheckinUser(),
-                        Analytics::getTodayTrafficUsage(),
-                    ],
-                    I18n::trans('bot.diary', $_ENV['locale'])
-                )
-            );
-        } catch (TelegramSDKException | GuzzleException $e) {
-            echo $e->getMessage() . PHP_EOL;
-        }
+        $time = time();
+        (new Telegram())->send(0, str_replace(
+            ['%getTodayCheckinUser%', '%lastday_total%'],
+            [Analytics::getTodayCheckinUser(), Analytics::getTodayTrafficUsage()],
+            Config::obtain('telegram_diary_text')
+        ));
 
-        echo Tools::toDateTime(time()) . ' Successfully sent diary notification' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 成功发送 Telegram 系统运行日志' . PHP_EOL;
     }
 
     public static function updateNodeIp(): void
     {
+        $time = time();
         $nodes = (new Node())->where('type', 1)->get();
 
         foreach ($nodes as $node) {
@@ -688,6 +394,6 @@ final class Cron
             $node->save();
         }
 
-        echo Tools::toDateTime(time()) . ' 更新节点 IP 完成' . PHP_EOL;
+        echo Tools::toDateTime($time) . ' 更新节点 IP 完成' . PHP_EOL;
     }
 }
