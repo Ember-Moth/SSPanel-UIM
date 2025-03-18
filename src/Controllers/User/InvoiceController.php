@@ -8,7 +8,7 @@ use App\Controllers\BaseController;
 use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\UserMoneyLog;
-use App\Models\Order; // 新增 Order 模型引用
+use App\Models\Order;
 use App\Services\Payment;
 use App\Utils\Tools;
 use Exception;
@@ -145,8 +145,8 @@ final class InvoiceController extends BaseController
             $invoice->pay_time = time();
             $invoice->save();
 
-            // 支付成功后更新 Order 状态
-            if ($invoice->status === 'paid_balance') {
+            // 修改后的订单状态更新逻辑
+            if (in_array($invoice->status, ['paid_balance', 'paid_gateway', 'paid_admin'])) {
                 $order = (new Order())->where('id', $invoice->order_id)->first();
                 if ($order && $order->status === 'pending_payment') {
                     $order->status = 'activated';
