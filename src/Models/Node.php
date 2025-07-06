@@ -83,10 +83,15 @@ final class Node extends Model
         return match ($this->sort) {
             0 => 'Shadowsocks',
             1 => 'Shadowsocks2022',
-            2 => 'TUIC',
-            3 => 'WireGuard',
-            11 => 'Vmess',
-            14 => 'Trojan',
+            2 => 'Trojan',
+            3 => 'Vmess',
+            4 => 'Vless',
+            5 => 'Hysteria2',
+            6 => 'Tuic',
+            7 => 'Naive',
+            8 => 'Anytls',
+            9 => 'Mieru',
+            10 => 'WireGuard',
             default => '未知',
         };
     }
