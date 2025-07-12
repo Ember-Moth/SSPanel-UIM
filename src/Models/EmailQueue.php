@@ -60,6 +60,19 @@ final class EmailQueue extends Model
         $this->redis->del($key); // 删除已处理的邮件数据
         return $data ? json_decode($data, true) : null;
     }
+    public function blockingPop(int $timeout = 30): ?array
+    {
+        $result = $this->redis->brPop([$this->queueName], $timeout);
+
+        if ($result === null || count($result) !== 2) {
+            return null;
+        }
+
+        [$queue, $key] = $result;
+        $data = $this->redis->get($key);
+        $this->redis->del($key); // 删除已处理的邮件数据
+        return $data ? json_decode($data, true) : null;
+    }
 
     public function where($column, $operator, $value): self
     {
