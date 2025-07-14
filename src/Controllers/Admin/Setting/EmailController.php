@@ -6,12 +6,11 @@ namespace App\Controllers\Admin\Setting;
 
 use App\Controllers\BaseController;
 use App\Models\Config;
-use App\Services\Mail;
+use App\Services\Queue;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Response;
 use Slim\Http\ServerRequest;
 use Smarty\Exception;
-use Throwable;
 
 final class EmailController extends BaseController
 {
@@ -59,22 +58,19 @@ final class EmailController extends BaseController
     {
         $to = $request->getParam('recipient');
 
-        try {
-            Mail::send(
-                $to,
-                '测试邮件',
-                'test.tpl'
-            );
-        } catch (Throwable $e) {
-            return $response->withJson([
-                'ret' => 0,
-                'msg' => '测试邮件发送失败 ' . $e->getMessage(),
-            ]);
-        }
+        //邮件发送的参数
+        $emailData = [
+            'to_email' => $to,
+            'subject'  => '测试邮件',
+            'template' => 'test.tpl',
+        ];
 
+        //使用队列添加任务
+        $emailQueue = new Queue('email_queue');
+        $emailQueue->add($emailData, 'email');
         return $response->withJson([
             'ret' => 1,
-            'msg' => '测试邮件发送成功',
+            'msg' => '测试邮件发送任务已成功加入队列',
         ]);
     }
 }

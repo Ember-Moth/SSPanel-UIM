@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\UserMoneyLog;
 use App\Services\Payment;
+use App\Services\Queue;
 use App\Utils\Tools;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
@@ -144,6 +145,22 @@ final class InvoiceController extends BaseController
             $invoice->update_time = time();
             $invoice->pay_time = time();
             $invoice->save();
+
+            if ($invoice->status === 'paid_balance' && $invoice->order_id) {
+                (new Queue('order_queue'))->add(
+                    [
+                        'order_id' => $invoice->order_id,
+                    ],
+                    'order'
+                );
+            }
+
+            if ($invoice->status === 'paid_balance') {
+                return $response->withHeader('HX-Redirect', '/user/invoice');
+            }
+
+            return $response->withHeader('HX-Refresh', 'true');
+
         } else {
             return $response->withJson([
                 'ret' => 0,

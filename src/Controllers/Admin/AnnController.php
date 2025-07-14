@@ -7,7 +7,7 @@ namespace App\Controllers\Admin;
 use App\Controllers\BaseController;
 use App\Models\Ann;
 use App\Models\Config;
-use App\Models\EmailQueue;
+use App\Services\Queue;
 use App\Models\User;
 use App\Services\Notification;
 use App\Utils\Tools;
@@ -109,14 +109,17 @@ final class AnnController extends BaseController
             $subject = $_ENV['appName'] . ' - 新公告发布';
 
             foreach ($users as $user) {
-                (new EmailQueue())->add(
-                    $user->email,
-                    $subject,
-                    'warn.tpl',
+                (new Queue('email_queue'))->add(
                     [
-                        'user' => $user,
-                        'text' => $content,
-                    ]
+                        'to_email' => $user->email,
+                        'subject' => $subject,
+                        'template' => 'warn.tpl',
+                        'array' => json_encode([
+                            'user' => $user,
+                            'text' => $content,
+                        ])
+                    ],
+                    'email'
                 );
             }
         }

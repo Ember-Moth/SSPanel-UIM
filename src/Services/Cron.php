@@ -7,7 +7,6 @@ namespace App\Services;
 use App\Models\Ann;
 use App\Models\Config;
 use App\Models\DetectLog;
-use App\Models\EmailQueue;
 use App\Models\HourlyUsage;
 use App\Models\Invoice;
 use App\Models\Node;
@@ -16,20 +15,16 @@ use App\Models\Order;
 use App\Models\Paylist;
 use App\Models\SubscribeLog;
 use App\Models\User;
-use App\Models\UserMoneyLog;
 use App\Utils\Tools;
-use DateTime;
-use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Client\ClientExceptionInterface;
 use Telegram\Bot\Exceptions\TelegramSDKException;
-use function array_map;
+
 use function date;
-use function in_array;
-use function json_decode;
 use function str_replace;
 use function strtotime;
 use function time;
+
 use const PHP_EOL;
 
 final class Cron
@@ -47,7 +42,7 @@ final class Cron
             date('Y-m-d', time() - 86400 * Config::obtain('traffic_log_retention_days'))
         )->delete();
         (new DetectLog())->where('datetime', '<', time() - 86400 * 3)->delete();
-        (new EmailQueue())->where('time', '<', time() - 86400)->delete();
+        // EmailQueue 使用 TTL 自动清理，无需手动删除
         (new OnlineLog())->where('last_time', '<', time() - 86400)->delete();
 
         echo Tools::toDateTime(time()) . ' 数据库清理完成' . PHP_EOL;
@@ -107,7 +102,7 @@ final class Cron
                                 I18n::trans('bot.node_offline', $_ENV['locale'])
                             ),
                         );
-                    } catch (TelegramSDKException | GuzzleException $e) {
+                    } catch (TelegramSDKException|GuzzleException $e) {
                         echo $e->getMessage() . PHP_EOL;
                     }
                 }
@@ -139,7 +134,7 @@ final class Cron
                                 I18n::trans('bot.node_online', $_ENV['locale'])
                             ),
                         );
-                    } catch (TelegramSDKException | GuzzleException $e) {
+                    } catch (TelegramSDKException|GuzzleException $e) {
                         echo $e->getMessage() . PHP_EOL;
                     }
                 }
@@ -181,219 +176,6 @@ final class Cron
         }
 
         echo Tools::toDateTime(time()) . ' 付费用户过期检测完成' . PHP_EOL;
-    }
-
-    public static function processEmailQueue(): void
-    {
-        if ((new EmailQueue())->count() === 0) {
-            echo Tools::toDateTime(time()) . ' 邮件队列为空' . PHP_EOL;
-        } else {
-            //记录当前时间戳
-            $timestamp = time();
-            //邮件队列处理
-            while (true) {
-                if (time() - $timestamp > 299) {
-                    echo Tools::toDateTime(time()) . '邮件队列处理超时，已跳过' . PHP_EOL;
-                    break;
-                }
-
-                DB::beginTransaction();
-                $email_queues_raw = DB::select('SELECT * FROM email_queue LIMIT 1 FOR UPDATE SKIP LOCKED');
-
-                if (count($email_queues_raw) === 0) {
-                    DB::commit();
-                    break;
-                }
-
-                $email_queues = array_map(static function ($value) {
-                    return (array) $value;
-                }, $email_queues_raw);
-                $email_queue = $email_queues[0];
-                echo '发送邮件至 ' . $email_queue['to_email'] . PHP_EOL;
-                DB::delete('DELETE FROM email_queue WHERE id = ?', [$email_queue['id']]);
-
-                if (Tools::isEmail($email_queue['to_email'])) {
-                    try {
-                        Mail::send(
-                            $email_queue['to_email'],
-                            $email_queue['subject'],
-                            $email_queue['template'],
-                            json_decode($email_queue['array'])
-                        );
-                    } catch (Exception|ClientExceptionInterface $e) {
-                        echo $e->getMessage();
-                    }
-                } else {
-                    echo $email_queue['to_email'] . ' 邮箱格式错误，已跳过' . PHP_EOL;
-                }
-
-                DB::commit();
-            }
-
-            echo Tools::toDateTime(time()) . ' 邮件队列处理完成' . PHP_EOL;
-        }
-    }
-
-    public static function processTabpOrderActivation(): void
-    {
-        $users = User::all();
-
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户已激活的TABP订单，一个用户同时只能有一个已激活的TABP订单
-            $activated_order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'activated')
-                ->where('product_type', 'tabp')
-                ->orderBy('id')
-                ->first();
-            // 获取用户账户等待激活的TABP订单
-            $pending_activation_orders = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'tabp')
-                ->orderBy('id')
-                ->get();
-            // 如果用户账户中有已激活的TABP订单，则判断是否过期
-            if ($activated_order !== null) {
-                $content = json_decode($activated_order->product_content);
-
-                if ($activated_order->update_time + $content->time * 86400 < time()) {
-                    $activated_order->status = 'expired';
-                    $activated_order->update_time = time();
-                    $activated_order->save();
-                    echo "TABP订单 #{$activated_order->id} 已过期。\n";
-                    $activated_order = null; // 先检查过期，再激活新订单，避免服务中断
-                }
-            }
-            // 如果用户账户中没有已激活的TABP订单，且有等待激活的TABP订单，则激活最早的等待激活TABP订单
-            if ($activated_order === null && count($pending_activation_orders) > 0) {
-                $order = $pending_activation_orders[0];
-                // 获取TABP订单内容准备激活
-                $content = json_decode($order->product_content);
-                // 激活TABP
-                $user->u = 0;
-                $user->d = 0;
-                $user->transfer_today = 0;
-                $user->transfer_enable = Tools::gbToB($content->bandwidth);
-                $user->class = $content->class;
-                $old_class_expire = new DateTime();
-                $user->class_expire = $old_class_expire
-                    ->modify('+' . $content->class_time . ' days')->format('Y-m-d H:i:s');
-                $user->node_group = $content->node_group;
-                $user->node_speedlimit = $content->speed_limit;
-                $user->node_iplimit = $content->ip_limit;
-                $user->save();
-                $order->status = 'activated';
-                $order->update_time = time();
-                $order->save();
-                echo "TABP订单 #{$order->id} 已激活。\n";
-            }
-        }
-
-        echo Tools::toDateTime(time()) . ' TABP订单激活处理完成' . PHP_EOL;
-    }
-
-    public static function processBandwidthOrderActivation(): void
-    {
-        $users = User::all();
-
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户等待激活的流量包订单
-            $order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'bandwidth')
-                ->orderBy('id')
-                ->first();
-
-            if ($order !== null) {
-                // 获取流量包订单内容准备激活
-                $content = json_decode($order->product_content);
-                // 激活流量包
-                $user->transfer_enable += Tools::gbToB($content->bandwidth);
-                $user->save();
-                $order->status = 'activated';
-                $order->update_time = time();
-                $order->save();
-                echo "流量包订单 #{$order->id} 已激活。\n";
-            }
-        }
-
-        echo Tools::toDateTime(time()) . ' 流量包订单激活处理完成' . PHP_EOL;
-    }
-
-    /**
-     * @throws Exception
-     */
-    public static function processTimeOrderActivation(): void
-    {
-        $users = User::all();
-
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户等待激活的时间包订单
-            $order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'time')
-                ->orderBy('id')
-                ->first();
-
-            if ($order !== null) {
-                $content = json_decode($order->product_content);
-                // 跳过当前账户等级不等于时间包等级的非免费用户订单
-                if ($user->class !== (int) $content->class && $user->class > 0) {
-                    continue;
-                }
-                // 激活时间包
-                $user->class = $content->class;
-                $old_class_expire = new DateTime($user->class_expire);
-                $user->class_expire = $old_class_expire
-                    ->modify('+' . $content->class_time . ' days')->format('Y-m-d H:i:s');
-                $user->node_group = $content->node_group;
-                $user->node_speedlimit = $content->speed_limit;
-                $user->node_iplimit = $content->ip_limit;
-                $user->save();
-                $order->status = 'activated';
-                $order->update_time = time();
-                $order->save();
-                echo "时间包订单 #{$order->id} 已激活。\n";
-            }
-        }
-
-        echo Tools::toDateTime(time()) . ' 时间包订单激活处理完成' . PHP_EOL;
-    }
-
-    /**
-     * @throws Exception
-     */
-    public static function processTopupOrderActivation(): void
-    {
-        // 获取等待激活的充值订单，允许同时处理多个充值订单
-        $orders = (new Order())->where('status', 'pending_activation')
-            ->where('product_type', 'topup')
-            ->orderBy('id')
-            ->get();
-
-        foreach ($orders as $order) {
-            $user_id = $order->user_id;
-            $user = (new User())->find($user_id);
-            $content = json_decode($order->product_content);
-            // 充值
-            $user->money += $content->amount;
-            $user->save();
-            $order->status = 'activated';
-            $order->update_time = time();
-            $order->save();
-            (new UserMoneyLog())->add(
-                $user_id,
-                $user->money - $content->amount,
-                $user->money,
-                $content->amount,
-                "充值订单 #{$order->id}"
-            );
-            echo "充值订单 #{$order->id} 已激活。\n";
-        }
-
-        echo Tools::toDateTime(time()) . ' 充值订单激活处理完成' . PHP_EOL;
     }
 
     public static function processPendingOrder(): void
@@ -496,7 +278,7 @@ final class Cron
                 $text_html .= '<td>' . $paylist->total . '</td>';
                 $text_html .= '<td>' . $paylist->userid . '</td>';
                 $text_html .= '<td>' . (new User())->find($paylist->userid)->user_name . '</td>';
-                $text_html .= '<td>' . Tools::toDateTime((int) $paylist->datetime) . '</td>';
+                $text_html .= '<td>' . Tools::toDateTime((int)$paylist->datetime) . '</td>';
                 $text_html .= '</tr>';
             }
 
@@ -598,7 +380,7 @@ final class Cron
                 $unit_text = 'MB';
             }
 
-            if ($under_limit && ! $user->traffic_notified) {
+            if ($under_limit && !$user->traffic_notified) {
                 try {
                     Notification::notifyUser(
                         $user,
@@ -613,7 +395,7 @@ final class Cron
                 }
 
                 $user->save();
-            } elseif (! $under_limit && $user->traffic_notified) {
+            } elseif (!$under_limit && $user->traffic_notified) {
                 $user->traffic_notified = false;
                 $user->save();
             }
@@ -649,7 +431,7 @@ final class Cron
             Notification::notifyUserGroup(
                 I18n::trans('bot.daily_job_run', $_ENV['locale'])
             );
-        } catch (TelegramSDKException | GuzzleException $e) {
+        } catch (TelegramSDKException|GuzzleException $e) {
             echo $e->getMessage() . PHP_EOL;
         }
 
@@ -672,7 +454,7 @@ final class Cron
                     I18n::trans('bot.diary', $_ENV['locale'])
                 )
             );
-        } catch (TelegramSDKException | GuzzleException $e) {
+        } catch (TelegramSDKException|GuzzleException $e) {
             echo $e->getMessage() . PHP_EOL;
         }
 

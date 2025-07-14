@@ -34,10 +34,6 @@ EOL;
 
         // Run new shop related jobs
         $jobs->processPendingOrder();
-        $jobs->processTabpOrderActivation();
-        $jobs->processBandwidthOrderActivation();
-        $jobs->processTimeOrderActivation();
-        $jobs->processTopupOrderActivation();
 
         // Run user related jobs
         $jobs->expirePaidUserAccount();
@@ -129,8 +125,5 @@ EOL;
             $detect = new Detect();
             $detect->ban();
         }
-
-        // Run email queue
-        $jobs->processEmailQueue();
     }
 }

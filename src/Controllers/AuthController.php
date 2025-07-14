@@ -12,7 +12,7 @@ use App\Services\Auth;
 use App\Services\Cache;
 use App\Services\Captcha;
 use App\Services\Filter;
-use App\Services\Mail;
+use App\Services\Queue;
 use App\Services\MFA;
 use App\Services\RateLimit;
 use App\Services\Reward;
@@ -21,7 +21,6 @@ use App\Utils\Hash;
 use App\Utils\ResponseHelper;
 use App\Utils\Tools;
 use Exception;
-use Psr\Http\Client\ClientExceptionInterface;
 use Psr\Http\Message\ResponseInterface;
 use Ramsey\Uuid\Uuid;
 use RedisException;
@@ -170,19 +169,20 @@ final class AuthController extends BaseController
             $redis = (new Cache())->initRedis();
             $redis->setex('email_verify:' . $email_code, Config::obtain('email_verify_code_ttl'), $email);
 
-            try {
-                Mail::send(
-                    $email,
-                    $_ENV['appName'] . '- 验证邮件',
-                    'verify_code.tpl',
-                    [
+            // 使用 Queue 类添加邮件任务
+            $emailQueue = new Queue('email_queue');
+            $emailQueue->add(
+                [
+                    'to_email' => $email,
+                    'subject' => $_ENV['appName'] . '- 验证邮件',
+                    'template' => 'verify_code.tpl',
+                    'array' => json_encode([
                         'code' => $email_code,
                         'expire' => date('Y-m-d H:i:s', time() + Config::obtain('email_verify_code_ttl')),
-                    ]
-                );
-            } catch (Exception|ClientExceptionInterface) {
-                return ResponseHelper::error($response, '邮件发送失败，请联系网站管理员。');
-            }
+                    ])
+                ],
+                'email'
+            );
 
             return ResponseHelper::success($response, '验证码发送成功，请查收邮件。');
         }

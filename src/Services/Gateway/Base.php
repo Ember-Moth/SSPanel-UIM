@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace App\Services\Gateway;
@@ -9,6 +8,7 @@ use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\User;
 use App\Models\UserMoneyLog;
+use App\Services\Queue;
 use App\Services\Reward;
 use App\Utils\Tools;
 use Psr\Http\Message\ResponseInterface;
@@ -68,20 +68,30 @@ abstract class Base
             $invoice->update_time = time();
             $invoice->pay_time = time();
             $invoice->save();
+
+            // 将订单 ID 推送到 order_queue 队列
+            if ($invoice->order_id) {
+                (new Queue('order_queue'))->add(
+                    [
+                        'order_id' => $invoice->order_id,
+                    ],
+                    'order'
+                );
+            }
         }
 
         $user = (new User())->find($paylist?->userid);
 
         if ($paylist?->total > $invoice?->price) {
             $money_before = $user->money;
-            $user->money += $paylist?->total - $invoice?->price;
+            $user->money += $paylist->total - $invoice->price;
             $user->save();
             (new UserMoneyLog())->add(
                 $user->id,
                 $money_before,
                 $user->money,
-                $paylist?->total - $invoice?->price,
-                '超额支付账单 #' . $invoice?->id
+                $paylist->total - $invoice->price,
+                '超额支付账单 #' . $invoice->id
             );
         }
 

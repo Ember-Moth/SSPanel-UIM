@@ -6,6 +6,7 @@ namespace App\Models;
 
 use App\Services\IM;
 use App\Services\IM\Telegram;
+use App\Services\Queue;
 use App\Utils\Tools;
 use GuzzleHttp\Exception\GuzzleException;
 use Illuminate\Database\Query\Builder;
@@ -288,18 +289,22 @@ final class User extends Model
         if ($this->daily_mail_enable === 1) {
             echo 'Sending daily mail to user: ' . $this->id . PHP_EOL;
 
-            (new EmailQueue())->add(
-                $this->email,
-                $_ENV['appName'] . '-每日流量报告以及公告',
-                'traffic_report.tpl',
+            // 使用 Queue 类添加邮件任务
+            (new Queue('email_queue'))->add(
                 [
-                    'user' => $this,
-                    'text' => '站点公告:<br><br>' . $ann . '<br><br>晚安！',
-                    'lastday_traffic' => $lastday_traffic,
-                    'enable_traffic' => $enable_traffic,
-                    'used_traffic' => $used_traffic,
-                    'unused_traffic' => $unused_traffic,
-                ]
+                    'to_email' => $this->email,
+                    'subject' => $_ENV['appName'] . '-每日流量报告以及公告',
+                    'template' => 'traffic_report.tpl',
+                    'array' => json_encode([
+                        'user' => $this,
+                        'text' => '站点公告:<br><br>' . $ann . '<br><br>晚安！',
+                        'lastday_traffic' => $lastday_traffic,
+                        'enable_traffic' => $enable_traffic,
+                        'used_traffic' => $used_traffic,
+                        'unused_traffic' => $unused_traffic,
+                    ])
+                ],
+                'email'
             );
         } elseif ($this->daily_mail_enable === 2 && $this->im_value !== '') {
             echo 'Sending daily IM message to user: ' . $this->id . PHP_EOL;
