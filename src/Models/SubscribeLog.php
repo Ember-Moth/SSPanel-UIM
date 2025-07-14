@@ -14,19 +14,29 @@ use Telegram\Bot\Exceptions\TelegramSDKException;
 use function time;
 
 /**
- * @property int    $id                 记录ID
- * @property int    $user_id            用户ID
+ * @property int $id                 记录ID
+ * @property int $user_id            用户ID
  * @property string $type               获取的订阅类型
  * @property string $request_ip         请求IP
  * @property string $request_user_agent 请求UA
- * @property int    $request_time       请求时间
+ * @property int $request_time       请求时间
  *
  * @mixin Builder
+ * @method save()
+ * @method where(string $string, int $user_id)
  */
 final class SubscribeLog extends Model
 {
     protected $connection = 'default';
     protected $table = 'subscribe_log';
+    private int $request_time;
+    private string $request_user_agent;
+    /**
+     * @var mixed|string
+     */
+    private mixed $request_ip;
+    private string $type;
+    private int $user_id;
 
     /**
      * 用户

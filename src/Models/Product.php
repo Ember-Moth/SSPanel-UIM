@@ -20,9 +20,23 @@ use Illuminate\Database\Query\Builder;
  * @property int    $stock       库存
  *
  * @mixin Builder
+ * @method find(mixed $id)
+ * @method save()
+ * @method orderBy(string $string, string $string1)
+ * @method where(string $string, $product_id)
  */
 final class Product extends Model
 {
+    public int $stock;
+    public int $sale_count;
+    public int $update_time;
+    public int $create_time;
+    public int $status;
+    public string|false $limit;
+    public string|false $content;
+    public int|float $price;
+    public string $name;
+    public string $type;
     protected $connection = 'default';
     protected $table = 'product';
 

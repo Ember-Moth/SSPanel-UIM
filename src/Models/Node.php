@@ -38,6 +38,8 @@ use const DNS_AAAA;
  * @property string $password                后端连接密码
  *
  * @mixin Builder
+ * @method where(string $string, int $int)
+ * @method static all()
  */
 final class Node extends Model
 {

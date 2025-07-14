@@ -20,9 +20,22 @@ use Illuminate\Database\Query\Builder;
  * @property int    $update_time     更新时间
  *
  * @mixin Builder
+ * @method where(string $string, mixed $order_id)
+ * @method save()
+ * @method orderBy(string $string, string $string1)
  */
 final class Order extends Model
 {
+    public string $status;
+    public int $update_time;
+    public int $create_time;
+    public float $price;
+    public string $coupon;
+    public string|false $product_content;
+    public string $product_name;
+    public string $product_type;
+    public int $product_id;
+    public int $user_id;
     protected $connection = 'default';
     protected $table = 'order';
 

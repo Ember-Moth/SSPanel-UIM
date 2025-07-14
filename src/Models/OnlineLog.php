@@ -16,6 +16,7 @@ use function substr;
  * @property int    $last_time  最后在线时间
  *
  * @mixin Builder
+ * @method where(string $string, int string $string1, int $param)
  */
 final class OnlineLog extends Model
 {

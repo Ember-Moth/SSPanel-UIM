@@ -8,16 +8,20 @@ use App\Utils\Tools;
 use Illuminate\Database\Query\Builder;
 
 /**
- * @property int    $id         记录ID
+ * @property int $id         记录ID
  * @property string $code       邀请码
- * @property int    $user_id    用户ID
+ * @property int $user_id    用户ID
  *
  * @mixin Builder
+ * @method where(string $string, int $id)
+ * @method save()
  */
 final class InviteCode extends Model
 {
     protected $connection = 'default';
     protected $table = 'user_invite_code';
+    private int $user_id;
+    private string|false $code;
 
     public function add(int $user_id): string
     {

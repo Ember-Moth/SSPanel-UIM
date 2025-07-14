@@ -227,7 +227,7 @@ final class Cron
 
     public static function resetNodeBandwidth(): void
     {
-        (new Node())->where('bandwidthlimit_resetday', date('d'))->update(['node_bandwidth' => 0]);
+        (new Node())->where('bandwidthlimit_resetday', (int)date('d'))->update(['node_bandwidth' => 0]);
 
         echo Tools::toDateTime(time()) . ' 重设节点流量完成' . PHP_EOL;
     }
@@ -267,7 +267,7 @@ final class Cron
     public static function sendDailyFinanceMail(): void
     {
         $today = strtotime('00:00:00');
-        $paylists = (new Paylist())->where('status', 1)
+        $paylists = (new Paylist())->where('status', "1")
             ->whereBetween('datetime', [strtotime('-1 day', $today), $today])->get();
 
         if (count($paylists) > 0) {
@@ -316,7 +316,7 @@ final class Cron
     public static function sendWeeklyFinanceMail(): void
     {
         $today = strtotime('00:00:00');
-        $paylists = (new Paylist())->where('status', 1)
+        $paylists = (new Paylist())->where('status', "1")
             ->whereBetween('datetime', [strtotime('-1 week', $today), $today])
             ->get();
 
@@ -339,7 +339,7 @@ final class Cron
     public static function sendMonthlyFinanceMail(): void
     {
         $today = strtotime('00:00:00');
-        $paylists = (new Paylist())->where('status', 1)
+        $paylists = (new Paylist())->where('status', "1")
             ->whereBetween('datetime', [strtotime('-1 month', $today), $today])
             ->get();
 

@@ -14,6 +14,7 @@ use Illuminate\Database\Query\Builder;
  * @property string $content    公告内容
  *
  * @mixin Builder
+ * @method where(string $string, string $string1, int $int)
  */
 final class Ann extends Model
 {

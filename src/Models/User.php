@@ -17,55 +17,63 @@ use function round;
 use const PHP_EOL;
 
 /**
- * @property int    $id 用户ID
+ * @property int $id 用户ID
  * @property string $user_name 用户名
  * @property string $email E-Mail
  * @property string $pass 登录密码
  * @property string $passwd 节点密码
  * @property string $uuid UUID
- * @property int    $u 账户当前上传流量
- * @property int    $d 账户当前下载流量
- * @property int    $transfer_today 账户今日所用流量
- * @property int    $transfer_total 账户累计使用流量
- * @property int    $transfer_enable 账户当前可用流量
- * @property int    $port 端口
+ * @property int $u 账户当前上传流量
+ * @property int $d 账户当前下载流量
+ * @property int $transfer_today 账户今日所用流量
+ * @property int $transfer_total 账户累计使用流量
+ * @property int $transfer_enable 账户当前可用流量
+ * @property int $port 端口
  * @property string $last_detect_ban_time 最后一次被封禁的时间
- * @property int    $all_detect_number 累计违规次数
- * @property int    $last_use_time 最后使用时间
- * @property int    $last_check_in_time 最后签到时间
- * @property int    $last_login_time 最后登录时间
+ * @property int $all_detect_number 累计违规次数
+ * @property int $last_use_time 最后使用时间
+ * @property int $last_check_in_time 最后签到时间
+ * @property int $last_login_time 最后登录时间
  * @property string $reg_date 注册时间
- * @property float  $money 账户余额
- * @property int    $ref_by 邀请人ID
+ * @property float $money 账户余额
+ * @property int $ref_by 邀请人ID
  * @property string $method Shadowsocks加密方式
  * @property string $reg_ip 注册IP
- * @property int    $node_speedlimit 用户限速
- * @property int    $node_iplimit 同时可连接IP数
- * @property int    $is_admin 是否管理员
- * @property int    $im_type 联系方式类型
+ * @property int $node_speedlimit 用户限速
+ * @property int $node_iplimit 同时可连接IP数
+ * @property int $is_admin 是否管理员
+ * @property int $im_type 联系方式类型
  * @property string $im_value 联系方式
- * @property int    $contact_method 偏好的联系方式
- * @property int    $daily_mail_enable 每日报告开关
- * @property int    $class 等级
+ * @property int $contact_method 偏好的联系方式
+ * @property int $daily_mail_enable 每日报告开关
+ * @property int $class 等级
  * @property string $class_expire 等级过期时间
  * @property string $theme 网站主题
  * @property string $ga_token GA密钥
- * @property int    $ga_enable GA开关
+ * @property int $ga_enable GA开关
  * @property string $remark 备注
- * @property int    $node_group 节点分组
- * @property int    $is_banned 是否封禁
+ * @property int $node_group 节点分组
+ * @property int $is_banned 是否封禁
  * @property string $banned_reason 封禁理由
- * @property int    $is_shadow_banned 是否处于账户异常状态
- * @property int    $expire_notified 过期提醒
- * @property int    $traffic_notified 流量提醒
- * @property int    $auto_reset_day 自动重置流量日
- * @property float  $auto_reset_bandwidth 自动重置流量
+ * @property int $is_shadow_banned 是否处于账户异常状态
+ * @property int $expire_notified 过期提醒
+ * @property int $traffic_notified 流量提醒
+ * @property int $auto_reset_day 自动重置流量日
+ * @property float $auto_reset_bandwidth 自动重置流量
  * @property string $api_token API 密钥
- * @property int    $is_dark_mode 是否启用暗黑模式
- * @property int    $is_inactive 是否处于闲置状态
+ * @property int $is_dark_mode 是否启用暗黑模式
+ * @property int $is_inactive 是否处于闲置状态
  * @property string $locale 显示语言
  *
  * @mixin Builder
+ * @method where(string $string, $user_id)
+ * @method save()
+ * @method query()
+ * @method find($userid)
+ * @method whereIn(string $string, int[] $array)
+ * @method delete()
+ * @method static all()
+ * @method update(int[] $array)
  */
 final class User extends Model
 {
@@ -75,6 +83,64 @@ final class User extends Model
      * @var bool
      */
     public bool $isLogin;
+    /**
+     * @var int|mixed
+     */
+    public mixed $node_iplimit;
+    /**
+     * @var int|mixed
+     */
+    public mixed $node_speedlimit;
+    /**
+     * @var int|mixed
+     */
+    public mixed $node_group;
+    public string $class_expire;
+    /**
+     * @var int|mixed
+     */
+    public mixed $class;
+    public int $transfer_enable;
+    public int $transfer_today;
+    public int $d;
+    public int $u;
+    public string $user_name;
+    public string $email;
+    public int $port;
+    public string $remark;
+    public string|false $api_token;
+    public string $pass;
+    public string $ga_token;
+    /**
+     * @var mixed|string
+     */
+    public mixed $reg_ip;
+    public int $last_login_time;
+    /**
+     * @var mixed|string
+     */
+    public mixed $locale;
+    /**
+     * @var mixed|string
+     */
+    public mixed $theme;
+    public string $reg_date;
+    public int $ga_enable;
+    public int $ref_by;
+    public int|float $money;
+    /**
+     * @var int|mixed
+     */
+    public mixed $daily_mail_enable;
+    public string|array|bool|int|float $auto_reset_bandwidth;
+    public string|array|bool|int $auto_reset_day;
+    /**
+     * @var mixed|string
+     */
+    public mixed $method;
+    public string $uuid;
+    public string|false $passwd;
+    public int $is_admin;
 
     protected $connection = 'default';
     protected $table = 'user';
@@ -90,6 +156,8 @@ final class User extends Model
         'daily_mail_enable' => 'int',
         'ref_by' => 'int',
     ];
+    private int $im_type;
+    private string $im_value;
 
     /**
      * DiceBear 头像

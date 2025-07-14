@@ -23,9 +23,20 @@ use function time;
  * @property int    $pay_time    支付时间
  *
  * @mixin Builder
+ * @method where(string $string, $invoice_id)
+ * @method save()
  */
 final class Invoice extends Model
 {
+    public string $type;
+    public int $pay_time;
+    public int $update_time;
+    public int $create_time;
+    public string $status;
+    public float $price;
+    public string|false $content;
+    public string|int $order_id;
+    public int $user_id;
     protected $connection = 'default';
     protected $table = 'invoice';
 

@@ -15,9 +15,17 @@ use Illuminate\Database\Query\Builder;
  * @property string $content 文档内容
  *
  * @mixin Builder
+ * @method save()
+ * @method find(mixed $id)
+ * @method orderBy(string $string)
  */
 final class Docs extends Model
 {
+    public int $status;
+    public int $sort;
+    public string $date;
+    public string $title;
+    public string $content;
     protected $connection = 'default';
     protected $table = 'docs';
 

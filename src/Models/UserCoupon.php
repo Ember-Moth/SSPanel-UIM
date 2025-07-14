@@ -18,6 +18,7 @@ use function time;
  * @property int    $expire_time 过期时间
  *
  * @mixin Builder
+ * @method where(string $string, $coupon_raw)
  */
 final class UserCoupon extends Model
 {

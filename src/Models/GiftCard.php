@@ -16,9 +16,18 @@ use Illuminate\Database\Query\Builder;
  * @property int    $use_user    使用用户
  *
  * @mixin Builder
+ * @method save()
+ * @method find(mixed $card_id)
+ * @method orderBy(string $string, string $string1)
  */
 final class GiftCard extends Model
 {
+    public string|false $card;
+    public int $balance;
+    public int $create_time;
+    public int $status;
+    public int $use_time;
+    public int $use_user;
     protected $connection = 'default';
     protected $table = 'gift_card';
 

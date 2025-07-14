@@ -15,6 +15,7 @@ use Illuminate\Database\Query\Builder;
  * @property int $status   状态
  *
  * @mixin Builder
+ * @method where(string $string, int string $string1, float|int $param)
  */
 final class DetectLog extends Model
 {

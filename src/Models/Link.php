@@ -12,6 +12,8 @@ use Illuminate\Database\Query\Builder;
  * @property int    $userid 用户ID
  *
  * @mixin Builder
+ * @method where(string $string, int $id)
+ * @method static query()
  */
 final class Link extends Model
 {

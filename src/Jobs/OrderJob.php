@@ -94,6 +94,7 @@ final class OrderJob
 
     /**
      * 处理 TABP 订单
+     * @throws Exception
      */
     private static function handleTabp(User $user, Order $order, array $content): void
     {

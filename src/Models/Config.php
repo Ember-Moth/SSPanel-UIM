@@ -21,9 +21,40 @@ use function json_encode;
  * @property string $mark
  *
  * @mixin Builder
+ * @method where(string $string, string $string1)
+ * @method static all()
+ * @method save()
  */
 final class Config extends Model
 {
+    /**
+     * @var mixed|string
+     */
+    public mixed $mark;
+    /**
+     * @var mixed|string
+     */
+    public mixed $default;
+    /**
+     * @var mixed|string
+     */
+    public mixed $type;
+    /**
+     * @var mixed|string
+     */
+    public mixed $is_public;
+    /**
+     * @var mixed|string
+     */
+    public mixed $class;
+    /**
+     * @var mixed|string
+     */
+    public mixed $value;
+    /**
+     * @var mixed|string
+     */
+    public mixed $item;
     protected $connection = 'default';
     protected $table = 'config';
 

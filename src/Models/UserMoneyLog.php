@@ -17,11 +17,18 @@ use function time;
  * @property int $create_time 创建时间
  *
  * @mixin Builder
+ * @method save()
  */
 final class UserMoneyLog extends Model
 {
     protected $connection = 'default';
     protected $table = 'user_money_log';
+    private int $create_time;
+    private string $remark;
+    private float $amount;
+    private float $after;
+    private float $before;
+    private int $user_id;
 
     public function add(int $user_id, float $before, float $after, float $amount, string $remark): void
     {

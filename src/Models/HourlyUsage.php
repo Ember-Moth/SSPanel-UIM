@@ -17,6 +17,7 @@ use function json_encode;
  * @property string $usage     流量用量
  *
  * @mixin Builder
+ * @method where(string $string, string $string1, string $date)
  */
 final class HourlyUsage extends Model
 {

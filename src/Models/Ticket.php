@@ -16,6 +16,8 @@ use Illuminate\Database\Query\Builder;
  * @property string $type     工单类型
  *
  * @mixin Builder
+ * @method where(string $string, mixed $id)
+ * @method orderBy(string $string, string $string1)
  */
 final class Ticket extends Model
 {

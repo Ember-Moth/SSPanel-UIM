@@ -8,20 +8,28 @@ use Illuminate\Database\Query\Builder;
 use function time;
 
 /**
- * @property int   $id         记录ID
+ * @property int $id         记录ID
  * @property float $total      总金额
- * @property int   $userid     用户ID
- * @property int   $ref_by     推荐人ID
+ * @property int $userid     用户ID
+ * @property int $ref_by     推荐人ID
  * @property float $ref_get    推荐人获得金额
- * @property int   $invoice_id 账单ID
- * @property int   $datetime   创建时间
+ * @property int $invoice_id 账单ID
+ * @property int $datetime   创建时间
  *
  * @mixin Builder
+ * @method save()
+ * @method where(string $string, int $id)
  */
 final class Payback extends Model
 {
     protected $connection = 'default';
     protected $table = 'payback';
+    private int $datetime;
+    private int $invoice_id;
+    private float $ref_get;
+    private int $ref_by;
+    private int $userid;
+    private float $total;
 
     public function user(): \Illuminate\Database\Eloquent\Model|User|null
     {

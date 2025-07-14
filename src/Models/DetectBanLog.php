@@ -17,6 +17,9 @@ use Illuminate\Database\Query\Builder;
  * @property int    $all_detect_number 累计违规次数
  *
  * @mixin Builder
+ * @method static query()
+ * @method count()
+ * @method where(string $string, int $uid)
  */
 final class DetectBanLog extends Model
 {

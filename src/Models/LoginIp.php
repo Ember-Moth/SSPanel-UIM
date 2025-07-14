@@ -20,6 +20,7 @@ use function time;
  * @property int    $type     登录类型
  *
  * @mixin Builder
+ * @method where(string $string, int $uid)
  */
 final class LoginIp extends Model
 {

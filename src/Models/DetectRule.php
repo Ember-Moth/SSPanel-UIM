@@ -14,9 +14,16 @@ use Illuminate\Database\Query\Builder;
  * @property int    $type  规则类型
  *
  * @mixin Builder
+ * @method save()
+ * @method find(mixed $id)
+ * @method orderBy(string $string, string $string1)
  */
 final class DetectRule extends Model
 {
+    public string $name;
+    public string $text;
+    public string $regex;
+    public int $type;
     protected $connection = 'default';
     protected $table = 'detect_list';
 

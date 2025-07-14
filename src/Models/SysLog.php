@@ -17,6 +17,9 @@ use Illuminate\Database\Query\Builder;
  * @property int    $datetime '记录时间'
  *
  * @mixin Builder
+ * @method count()
+ * @method static query()
+ * @method find(mixed $id)
  */
 final class SysLog extends Model
 {

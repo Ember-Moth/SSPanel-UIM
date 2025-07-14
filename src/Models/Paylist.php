@@ -17,6 +17,7 @@ use Illuminate\Database\Query\Builder;
  * @property int    $datetime   创建时间
  *
  * @mixin Builder
+ * @method where(string $string, string $trade_no)
  */
 final class Paylist extends Model
 {
