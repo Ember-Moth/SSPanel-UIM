@@ -330,25 +330,4 @@ return static function (Slim\App $app): void {
         $group->get('/func/detect_rules', App\Controllers\WebAPI\FuncController::class . ':getDetectRules');
         $group->get('/func/ping', App\Controllers\WebAPI\FuncController::class . ':ping');
     })->add(new NodeToken());
-
-    // Admin REST API
-    //$app->group('/admin/api/v1', function (RouteCollectorProxy $group): void {
-    //    $group->post('/{action}', App\Controllers\Api\AdminApiV1Controller::class . ':actionHandler');
-    //})->add(new AdminApi());
-
-    // User REST API
-    //$app->group('/user/api/v1', function (RouteCollectorProxy $group): void {
-    //    $group->post('/{action}', App\Controllers\Api\UserApiV1Controller::class . ':actionHandler');
-    //})->add(new UserApi());
-
-    // WebAPI V2(Aka Node API V1)
-    //$app->group('/node/api/v1', function (RouteCollectorProxy $group): void {
-    //    $group->put('/heartbeat', App\Controllers\Api\NodeApiV1Controller::class . ':getHeartbeat');
-    //    $group->get('/info', App\Controllers\Api\NodeApiV1Controller::class . ':getInfo');
-    //    $group->get('/user', App\Controllers\Api\NodeApiV1Controller::class . ':getUser');
-    //    $group->get('/detect_rule', App\Controllers\Api\NodeApiV1Controller::class . ':getDetectRule');
-    //    $group->post('/user/traffic', App\Controllers\Api\NodeApiV1Controller::class . ':addUserTraffic');
-    //    $group->post('/user/online_ip', App\Controllers\Api\NodeApiV1Controller::class . ':addUserOnlineIp');
-    //    $group->post('/user/detect_log', App\Controllers\Api\NodeApiV1Controller::class . ':addUserDetectLog');
-    //})->add(new NodeApi());
 };
