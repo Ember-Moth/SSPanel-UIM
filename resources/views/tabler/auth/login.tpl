@@ -1,7 +1,5 @@
 {include file='header.tpl'}
 
-<script src="https://unpkg.com/@simplewebauthn/browser/dist/bundle/index.umd.min.js"></script>
-
 <body class="border-top-wide border-primary d-flex flex-column">
 <div class="page page-center">
     <div class="container-tight my-auto">
@@ -53,9 +51,6 @@
                              }'>
                         登录
                     </button>
-                    <button class="btn btn-primary w-100" id="webauthnLogin">
-                        使用WebAuthn登录
-                    </button>
                 </div>
             </div>
         </div>
@@ -70,36 +65,3 @@
 {/if}
 
 {include file='footer.tpl'}
-
-{literal}
-    <script>
-        const { startAuthentication } = SimpleWebAuthnBrowser;
-        document.getElementById('webauthnLogin').addEventListener('click', async () => {
-            const resp = await fetch('/auth/webauthn');
-            const options = await resp.json();
-            let asseResp;
-            try {
-                asseResp = await startAuthentication({ optionsJSON: options });
-            } catch (error) {
-                document.getElementById("fail-message").innerHTML = error;
-                throw error;
-            }
-            const verificationResp = await fetch('/auth/webauthn', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify(asseResp),
-            });
-            const verificationJSON = await verificationResp.json();
-            if (verificationJSON.ret === 1) {
-                document.getElementById("success-message").innerHTML = verificationJSON.msg;
-                successDialog.show();
-                window.location.href = verificationJSON.redir;
-            } else {
-                document.getElementById("fail-message").innerHTML = verificationJSON.msg;
-                failDialog.show();
-            }
-        });
-    </script>
-{/literal}
