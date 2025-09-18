@@ -77,9 +77,6 @@ return static function (Slim\App $app): void {
         $group->get('/totp', App\Controllers\User\MFAController::class . ':totpRegisterRequest');
         $group->post('/totp', App\Controllers\User\MFAController::class . ':totpRegisterHandle');
         $group->delete('/totp', App\Controllers\User\MFAController::class . ':totpDelete');
-        $group->get('/webauthn', App\Controllers\User\MFAController::class . ':webauthnRegisterRequest');
-        $group->post('/webauthn', App\Controllers\User\MFAController::class . ':webauthnRegisterHandle');
-        $group->delete('/webauthn/{id:[0-9]+}', App\Controllers\User\MFAController::class . ':webauthnDelete');
         $group->get('/fido', App\Controllers\User\MFAController::class . ':fidoRegisterRequest');
         $group->post('/fido', App\Controllers\User\MFAController::class . ':fidoRegisterHandle');
         $group->delete('/fido/{id:[0-9]+}', App\Controllers\User\MFAController::class . ':fidoDelete');
@@ -123,8 +120,6 @@ return static function (Slim\App $app): void {
         $group->post('/register', App\Controllers\AuthController::class . ':registerHandle');
         $group->post('/send', App\Controllers\AuthController::class . ':sendVerify');
         $group->get('/logout', App\Controllers\AuthController::class . ':logout');
-        $group->get('/webauthn', App\Controllers\AuthController::class . ':webauthnRequest');
-        $group->post('/webauthn', App\Controllers\AuthController::class . ':webauthnHandle');
         $group->get('/mfa', App\Controllers\AuthController::class . ':mfaPage');
         $group->post('/totp', App\Controllers\AuthController::class . ':totpHandle');
         $group->get('/fido', App\Controllers\AuthController::class . ':fidoRequest');
@@ -330,25 +325,4 @@ return static function (Slim\App $app): void {
         $group->get('/func/detect_rules', App\Controllers\WebAPI\FuncController::class . ':getDetectRules');
         $group->get('/func/ping', App\Controllers\WebAPI\FuncController::class . ':ping');
     })->add(new NodeToken());
-
-    // Admin REST API
-    //$app->group('/admin/api/v1', function (RouteCollectorProxy $group): void {
-    //    $group->post('/{action}', App\Controllers\Api\AdminApiV1Controller::class . ':actionHandler');
-    //})->add(new AdminApi());
-
-    // User REST API
-    //$app->group('/user/api/v1', function (RouteCollectorProxy $group): void {
-    //    $group->post('/{action}', App\Controllers\Api\UserApiV1Controller::class . ':actionHandler');
-    //})->add(new UserApi());
-
-    // WebAPI V2(Aka Node API V1)
-    //$app->group('/node/api/v1', function (RouteCollectorProxy $group): void {
-    //    $group->put('/heartbeat', App\Controllers\Api\NodeApiV1Controller::class . ':getHeartbeat');
-    //    $group->get('/info', App\Controllers\Api\NodeApiV1Controller::class . ':getInfo');
-    //    $group->get('/user', App\Controllers\Api\NodeApiV1Controller::class . ':getUser');
-    //    $group->get('/detect_rule', App\Controllers\Api\NodeApiV1Controller::class . ':getDetectRule');
-    //    $group->post('/user/traffic', App\Controllers\Api\NodeApiV1Controller::class . ':addUserTraffic');
-    //    $group->post('/user/online_ip', App\Controllers\Api\NodeApiV1Controller::class . ':addUserOnlineIp');
-    //    $group->post('/user/detect_log', App\Controllers\Api\NodeApiV1Controller::class . ':addUserDetectLog');
-    //})->add(new NodeApi());
 };

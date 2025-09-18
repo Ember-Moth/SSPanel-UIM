@@ -190,7 +190,6 @@
 
 {include file='live_chat.tpl'}
 
-{include file='telemetry.tpl'}
 
 </body>
 
