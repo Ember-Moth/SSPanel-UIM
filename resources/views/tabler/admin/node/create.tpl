@@ -67,7 +67,7 @@
                                         <option value="6">TUIC</option>
                                         <option value="7">AnyTLS</option>
                                         <option value="8">Mieru</option>
-                                        option value="9">Naive</option>
+                                        <option value="9">Naive</option>
                                         <option value="10">Wireguard</option>
                                     </select>
                                 </div>

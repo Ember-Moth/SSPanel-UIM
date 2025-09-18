@@ -373,7 +373,7 @@
                                             </div>
                                         </div>
                                           <div class="form-group mb-3 row">
-                                              <label class="form-label col-3 col-form-label">货币y</label>
+                                              <label class="form-label col-3 col-form-label">货币</label>
                                               <div class="col">
                                                   <input id="cryptomus_currency" type="text" class="form-control">
                                                          value="{$settings['cryptomus_currency']}">
