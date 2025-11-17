@@ -9,6 +9,15 @@
         "mark": "支付网关"
     },
     {
+        "item": "notify_url",
+        "value": "",
+        "class": "billing",
+        "is_public": 0,
+        "type": "string",
+        "default": "",
+        "mark": "回调url"
+    },
+    {
         "item": "f2f_pay_app_id",
         "value": "",
         "class": "billing",
