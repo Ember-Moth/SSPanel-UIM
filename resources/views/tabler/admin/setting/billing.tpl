@@ -56,6 +56,15 @@
                         <div class="card-body">
                             <div class="tab-content">
                                 <div class="tab-pane active show" id="gateway">
+                                    <div class="form-group mb-3 row">
+                                        <label class="form-label col-3 col-form-label">自定义回调地址</label>
+                                        <div class="col">
+                                            <input id="notify_url" type="text" class="form-control"
+                                                   value="{$settings['notify_url']}"
+                                                   placeholder="留空则使用默认地址">
+                                        </div>
+                                    </div>
+                                    <hr>
                                     {foreach $payment_gateways as $key => $value}
                                     <div class="form-group mb-3 row">
                                         <div class="row align-items-center">
