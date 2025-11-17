@@ -341,7 +341,7 @@
                                 <div class="tab-pane" id="cryptomus">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">API kEY</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="cryptomus_api_key" type="password" class="form-control"
                                                        value="{$settings['cryptomus_api_key']}">
@@ -365,7 +365,7 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Lifetime</label>
+                                            <label class="form-label col-3 col-form-label">订单有效期</label>
                                             <div class="col">
                                                 <input id="cryptomus_lifetime" type="number" class="form-control"
                                                        value="{$settings['cryptomus_lifetime']}">
@@ -373,7 +373,7 @@
                                             </div>
                                         </div>
                                           <div class="form-group mb-3 row">
-                                              <label class="form-label col-3 col-form-label">Currency</label>
+                                              <label class="form-label col-3 col-form-label">货币</label>
                                               <div class="col">
                                                   <input id="cryptomus_currency" type="text" class="form-control"
                                                          value="{$settings['cryptomus_currency']}">
