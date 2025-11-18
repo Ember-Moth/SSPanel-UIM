@@ -16,6 +16,7 @@ vendor
 
 php_errors.log
 composer.phar
+composer.lock
 
 404.html
 index.html

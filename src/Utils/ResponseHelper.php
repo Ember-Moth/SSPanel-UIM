@@ -77,4 +77,53 @@ final class ResponseHelper
             'data' => $data,
         ]);
     }
+
+    /**
+     * Build a standard JSON response with {code, msg, data} format.
+     *
+     * @param Response $response
+     * @param array $data Response data containing 'code', 'msg', and 'data' keys
+     * @param int $status HTTP status code (optional, defaults to 200)
+     * @return ResponseInterface
+     */
+    public static function json(Response $response, array $data, int $status = 200): ResponseInterface
+    {
+        return $response->withStatus($status)->withJson($data);
+    }
+
+    /**
+     * Build a successful response with standard format.
+     *
+     * @param Response $response
+     * @param string $msg Success message
+     * @param mixed $data Response data (optional, defaults to null)
+     * @param int $code Response code (optional, defaults to 200)
+     * @return ResponseInterface
+     */
+    public static function apiSuccess(Response $response, string $msg = 'success', $data = null, int $code = 200): ResponseInterface
+    {
+        return $response->withJson([
+            'code' => $code,
+            'msg' => $msg,
+            'data' => $data,
+        ]);
+    }
+
+    /**
+     * Build an error response with standard format.
+     *
+     * @param Response $response
+     * @param string $msg Error message
+     * @param int $code Response code (optional, defaults to 400)
+     * @param mixed $data Response data (optional, defaults to null)
+     * @return ResponseInterface
+     */
+    public static function apiError(Response $response, string $msg, int $code = 400, $data = null): ResponseInterface
+    {
+        return $response->withJson([
+            'code' => $code,
+            'msg' => $msg,
+            'data' => $data,
+        ]);
+    }
 }

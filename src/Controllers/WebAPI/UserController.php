@@ -34,19 +34,32 @@ final class UserController extends BaseController
         $node = (new Node())->find($node_id);
 
         if ($node === null) {
-            return ResponseHelper::error($response, 'Node not found.');
+            return ResponseHelper::json($response, [
+                'code' => 404,
+                'msg' => 'Node not found.',
+                'data' => null
+            ]);
         }
 
         if ($node->type === 0) {
-            return ResponseHelper::error($response, 'Node is not enabled.');
+            return ResponseHelper::json($response, [
+                'code' => 403,
+                'msg' => 'Node is not enabled.',
+                'data' => null
+            ]);
         }
 
         $node->update(['node_heartbeat' => time()]);
 
-        if ($node->node_bandwidth_limit !== 0 &&
+        if (
+            $node->node_bandwidth_limit !== 0 &&
             $node->node_bandwidth_limit <= $node->node_bandwidth
         ) {
-            return ResponseHelper::error($response, 'Node out of bandwidth.');
+            return ResponseHelper::json($response, [
+                'code' => 403,
+                'msg' => 'Node out of bandwidth.',
+                'data' => null
+            ]);
         }
 
         $users_raw = (new User())
@@ -82,11 +95,12 @@ final class UserController extends BaseController
                 }
             }
 
-            if ($u->node_iplimit !== 0 &&
+            if (
+                $u->node_iplimit !== 0 &&
                 $u->node_iplimit < (new OnlineLog())
-                    ->where('user_id', $u->id)
-                    ->where('last_time', '>', time() - 90)
-                    ->count()
+                ->where('user_id', $u->id)
+                ->where('last_time', '>', time() - 90)
+                ->count()
             ) {
                 continue;
             }
@@ -120,7 +134,7 @@ final class UserController extends BaseController
         if (! $body || ! is_array($body->traffic)) {
             return ResponseHelper::json($response, [
                 'code' => 400,
-                'message' => 'Invalid data.',
+                'msg' => 'Invalid data.',
                 'data' => null
             ]);
         }
@@ -132,7 +146,7 @@ final class UserController extends BaseController
         if ($node === null) {
             return ResponseHelper::json($response, [
                 'code' => 404,
-                'message' => 'Node not found.',
+                'msg' => 'Node not found.',
                 'data' => null
             ]);
         }
@@ -140,7 +154,7 @@ final class UserController extends BaseController
         if ($node->type === 0) {
             return ResponseHelper::json($response, [
                 'code' => 403,
-                'message' => 'Node is not enabled.',
+                'msg' => 'Node is not enabled.',
                 'data' => null
             ]);
         }
@@ -203,7 +217,7 @@ final class UserController extends BaseController
 
         return ResponseHelper::json($response, [
             'code' => 200,
-            'message' => 'success',
+            'msg' => 'success',
             'data' => null
         ]);
     }
@@ -281,7 +295,11 @@ final class UserController extends BaseController
         $data = json_decode($request->getBody()->__toString());
 
         if (! $data || ! is_array($data->data)) {
-            return ResponseHelper::error($response, 'Invalid data.');
+            return ResponseHelper::json($response, [
+                'code' => 400,
+                'msg' => 'Invalid data.',
+                'data' => null
+            ]);
         }
 
         $data = $data->data;
@@ -289,11 +307,19 @@ final class UserController extends BaseController
         $node = (new Node())->find($node_id);
 
         if ($node === null) {
-            return ResponseHelper::error($response, 'Node not found.');
+            return ResponseHelper::json($response, [
+                'code' => 404,
+                'msg' => 'Node not found.',
+                'data' => null
+            ]);
         }
 
         if ($node->type === 0) {
-            return ResponseHelper::error($response, 'Node is not enabled.');
+            return ResponseHelper::json($response, [
+                'code' => 403,
+                'msg' => 'Node is not enabled.',
+                'data' => null
+            ]);
         }
 
         foreach ($data as $log) {
@@ -308,6 +334,10 @@ final class UserController extends BaseController
             ]);
         }
 
-        return ResponseHelper::success($response, 'ok');
+        return ResponseHelper::json($response, [
+            'code' => 200,
+            'msg' => 'success',
+            'data' => null
+        ]);
     }
 }
