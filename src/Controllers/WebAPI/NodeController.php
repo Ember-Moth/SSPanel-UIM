@@ -16,15 +16,22 @@ use const JSON_UNESCAPED_SLASHES;
 final class NodeController extends BaseController
 {
     /**
-     * GET /v1/server/config (deprecated)
      * GET /v2/server/{server_id}
      * Query params: secret_key
      * Path params: server_id (v2 only)
      */
     public function getInfo(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        // 从路径参数获取 server_id (v2)，如果不存在则从 query 参数获取 (v1 兼容)
-        $node_id = $args['server_id'] ?? $request->getQueryParam('server_id');
+        // 只支持 v2：从路径参数获取 server_id
+        $node_id = $args['server_id'] ?? null;
+        if ($node_id === null) {
+            return ResponseHelper::json($response, [
+                'code' => 400,
+                'msg' => 'Server ID is required.',
+                'data' => null
+            ]);
+        }
+
         $node = (new Node())->find($node_id);
 
         // 节点不存在
@@ -45,16 +52,19 @@ final class NodeController extends BaseController
             ]);
         }
 
+        // 获取节点自定义配置
         $protocols = json_decode($node->custom_config, true, JSON_UNESCAPED_SLASHES) ?? [];
 
-        // 构建新的响应数据
+        // 外层包一层数组，只兼容 v2
+        $protocolsArray = [$protocols];
+
         $data = [
             'traffic_report_threshold' => 0,
             'ip_strategy' => 'prefer_ipv4',
             'dns' => null,
             'block' => null,
             'outbound' => null,
-            'protocols' => $protocols,
+            'protocols' => $protocolsArray,
             'total' => 1
         ];
 
