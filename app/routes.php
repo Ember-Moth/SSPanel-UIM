@@ -318,4 +318,9 @@ return static function (Slim\App $app): void {
         $group->get('/func/detect_rules', App\Controllers\WebAPI\FuncController::class . ':getDetectRules');
         $group->get('/func/ping', App\Controllers\WebAPI\FuncController::class . ':ping');
     })->add(new NodeToken());
+    // WebAPI v2
+    $app->group('/v2', static function (RouteCollectorProxy $group): void {
+        // 节点配置
+        $group->get('/server/{server_id:[0-9]+}', App\Controllers\WebAPI\NodeController::class . ':getInfo');
+    })->add(new NodeToken());
 };

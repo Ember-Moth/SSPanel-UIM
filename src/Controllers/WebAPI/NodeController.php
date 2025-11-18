@@ -16,15 +16,18 @@ use const JSON_UNESCAPED_SLASHES;
 final class NodeController extends BaseController
 {
     /**
-     * GET /v1/server/config
-     * Query params: protocol, server_id, secret_key
+     * GET /v1/server/config (deprecated)
+     * GET /v2/server/{server_id}
+     * Query params: secret_key
+     * Path params: server_id (v2 only)
      */
     public function getInfo(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        // 从 query 参数获取 server_id（映射到原来的 id）
-        $node_id = $request->getQueryParam('server_id');
+        // 从路径参数获取 server_id (v2)，如果不存在则从 query 参数获取 (v1 兼容)
+        $node_id = $args['server_id'] ?? $request->getQueryParam('server_id');
         $node = (new Node())->find($node_id);
 
+        // 节点不存在
         if ($node === null) {
             return ResponseHelper::json($response, [
                 'code' => 404,
@@ -33,6 +36,7 @@ final class NodeController extends BaseController
             ]);
         }
 
+        // 节点未启用
         if ($node->type === 0) {
             return ResponseHelper::json($response, [
                 'code' => 403,
@@ -41,20 +45,17 @@ final class NodeController extends BaseController
             ]);
         }
 
-        // 获取协议名称并处理映射
-        $protocol = strtolower($node->sort());
-        if ($protocol === 'shadowsocks2022') {
-            $protocol = 'shadowsocks';
-        }
+        $protocols = json_decode($node->custom_config, true, JSON_UNESCAPED_SLASHES) ?? [];
 
-        // 构建响应数据
+        // 构建新的响应数据
         $data = [
-            'basic' => [
-                'push_interval' => 95,
-                'pull_interval' => 60
-            ],
-            'protocol' => $protocol,
-            'config' => json_decode($node->custom_config, true, JSON_UNESCAPED_SLASHES)
+            'traffic_report_threshold' => 0,
+            'ip_strategy' => 'prefer_ipv4',
+            'dns' => null,
+            'block' => null,
+            'outbound' => null,
+            'protocols' => $protocols,
+            'total' => 1
         ];
 
         return ResponseHelper::json($response, [
