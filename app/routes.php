@@ -306,13 +306,13 @@ return static function (Slim\App $app): void {
         $group->post('/invoice/ajax', App\Controllers\Admin\InvoiceController::class . ':ajax');
     })->add(new Admin());
     // WebAPI
-    $app->group('/mod_mu', static function (RouteCollectorProxy $group): void {
+    $app->group('/v1', static function (RouteCollectorProxy $group): void {
         // 节点
-        $group->get('/nodes/{id:[0-9]+}/info', App\Controllers\WebAPI\NodeController::class . ':getInfo');
+        $group->get('/server/config', App\Controllers\WebAPI\NodeController::class . ':getInfo');
         // 用户
-        $group->get('/users', App\Controllers\WebAPI\UserController::class . ':index');
-        $group->post('/users/traffic', App\Controllers\WebAPI\UserController::class . ':addTraffic');
-        $group->post('/users/aliveip', App\Controllers\WebAPI\UserController::class . ':addAliveIp');
+        $group->get('/server/user', App\Controllers\WebAPI\UserController::class . ':index');
+        $group->post('/server/push', App\Controllers\WebAPI\UserController::class . ':addTraffic');
+        $group->post('/server/online', App\Controllers\WebAPI\UserController::class . ':addAliveIp');
         $group->post('/users/detectlog', App\Controllers\WebAPI\UserController::class . ':addDetectLog');
         // 审计 & 杂七杂八的功能
         $group->get('/func/detect_rules', App\Controllers\WebAPI\FuncController::class . ':getDetectRules');

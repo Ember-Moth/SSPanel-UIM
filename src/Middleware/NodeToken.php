@@ -21,7 +21,8 @@ final class NodeToken implements MiddlewareInterface
      */
     public function process(ServerRequestInterface $request, RequestHandlerInterface $handler): ResponseInterface
     {
-        $key = $request->getQueryParams()['key'] ?? null;
+        // 支持新的 secret_key 参数，同时兼容旧的 key 参数
+        $key = $request->getQueryParams()['secret_key'] ?? $request->getQueryParams()['key'] ?? null;
 
         if ($key === null) {
             return AppFactory::determineResponseFactory()->createResponse(401)->withJson([
@@ -32,7 +33,8 @@ final class NodeToken implements MiddlewareInterface
 
         $antiXss = new AntiXSS();
 
-        if ($_ENV['enable_rate_limit'] &&
+        if (
+            $_ENV['enable_rate_limit'] &&
             (! (new RateLimit())->checkRateLimit('webapi_ip', $request->getServerParam('REMOTE_ADDR')) ||
                 ! (new RateLimit())->checkRateLimit('webapi_key', $antiXss->xss_clean($key)))
         ) {
@@ -42,7 +44,8 @@ final class NodeToken implements MiddlewareInterface
             ]);
         }
 
-        if (! $_ENV['webAPI'] ||
+        if (
+            ! $_ENV['webAPI'] ||
             $key !== $_ENV['muKey'] ||
             'https://' . $request->getHeaderLine('Host') !== $_ENV['webAPIUrl']
         ) {
@@ -55,7 +58,8 @@ final class NodeToken implements MiddlewareInterface
         if ($_ENV['checkNodeIp']) {
             $ip = $request->getServerParam('REMOTE_ADDR');
 
-            if ($ip !== '127.0.0.1' && $ip !== '::1' && $ip !== '0:0:0:0:0:0:0:1' &&
+            if (
+                $ip !== '127.0.0.1' && $ip !== '::1' && $ip !== '0:0:0:0:0:0:0:1' &&
                 ! (new Node())->where('ipv4', $ip)->orWhere('ipv6', $ip)->exists()
             ) {
                 return AppFactory::determineResponseFactory()->createResponse(401)->withJson([

@@ -26,11 +26,13 @@ use function time;
 final class UserController extends BaseController
 {
     /**
-     * GET /mod_mu/users
+     * GET /v1/server/user
+     * Query params: protocol, server_id, secret_key
      */
     public function index(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        $node_id = $request->getQueryParam('node_id');
+        // 从 query 参数获取 server_id（映射到原来的 node_id）
+        $node_id = $request->getQueryParam('server_id');
         $node = (new Node())->find($node_id);
 
         if ($node === null) {
@@ -125,7 +127,8 @@ final class UserController extends BaseController
     }
 
     /**
-     * POST /mod_mu/users/traffic
+     * POST /v1/server/push
+     * Query params: protocol, server_id, secret_key
      */
     public function addTraffic(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
@@ -140,7 +143,8 @@ final class UserController extends BaseController
         }
 
         $trafficData = $body->traffic;
-        $node_id = $request->getQueryParam('node_id');
+        // 从 query 参数获取 server_id（映射到原来的 node_id）
+        $node_id = $request->getQueryParam('server_id');
         $node = (new Node())->find($node_id);
 
         if ($node === null) {
@@ -223,7 +227,8 @@ final class UserController extends BaseController
     }
 
     /**
-     * POST /mod_mu/users/aliveip
+     * POST /v1/server/online
+     * Query params: protocol, server_id, secret_key
      */
     public function addAliveIp(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
@@ -238,7 +243,8 @@ final class UserController extends BaseController
         }
 
         $users = $body->users;
-        $node_id = $request->getQueryParam('node_id');
+        // 从 query 参数获取 server_id（映射到原来的 node_id）
+        $node_id = $request->getQueryParam('server_id');
         $node = (new Node())->find($node_id);
 
         if ($node === null) {

@@ -16,11 +16,13 @@ use const JSON_UNESCAPED_SLASHES;
 final class NodeController extends BaseController
 {
     /**
-     * GET /mod_mu/nodes/{id}/info
+     * GET /v1/server/config
+     * Query params: protocol, server_id, secret_key
      */
     public function getInfo(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        $node_id = $args['id'];
+        // 从 query 参数获取 server_id（映射到原来的 id）
+        $node_id = $request->getQueryParam('server_id');
         $node = (new Node())->find($node_id);
 
         if ($node === null) {
