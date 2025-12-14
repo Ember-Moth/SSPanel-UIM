@@ -75,6 +75,14 @@ final class Worker
   }
 
   /**
+   * 启用 Swoole 协程 RedisQueue
+   */
+  public function setSwooleMode(): void
+  {
+    $this->queue = new RedisQueue(true);
+  }
+
+  /**
    * 注册信号处理器（优雅关闭）
    */
   private function registerSignalHandlers(): void

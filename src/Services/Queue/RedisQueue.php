@@ -6,6 +6,7 @@ namespace App\Services\Queue;
 
 use App\Services\Cache;
 use Redis;
+use Swoole\Coroutine\Redis as CoRedis;
 use Throwable;
 use function json_decode;
 use function json_encode;
@@ -23,7 +24,10 @@ use function time;
  */
 final class RedisQueue
 {
-  private Redis $redis;
+  /**
+   * @var Redis|CoRedis
+   */
+  private $redis;
   private string $prefix = 'sspanel:queue:';
 
   // 队列名称常量
@@ -38,9 +42,12 @@ final class RedisQueue
   // 重试延迟（秒），指数退避
   private array $retryDelays = [60, 300, 900]; // 1分钟, 5分钟, 15分钟
 
-  public function __construct()
+  /**
+   * @param bool $swoole 是否使用 Swoole 协程 Redis
+   */
+  public function __construct(bool $swoole = false)
   {
-    $this->redis = (new Cache())->initRedis();
+    $this->redis = (new Cache())->initRedis($swoole);
   }
 
   /**

@@ -99,8 +99,20 @@ EOL;
     echo "  休眠间隔: {$sleep}μs" . PHP_EOL;
     echo PHP_EOL;
 
-    $worker = new Worker($queues, $maxJobs, $maxTime, $memory, $sleep);
-    $worker->run();
+    $isSwoole = isset($options['swoole']) && ($options['swoole'] === '1' || $options['swoole'] === 'true');
+    if ($isSwoole) {
+      $concurrency = (int)($options['concurrency'] ?? 8);
+      $swooleWorkerClass = '\App\Services\Queue\SwooleWorker';
+      if (!class_exists($swooleWorkerClass)) {
+        echo "未找到 SwooleWorker 类，无法启动 Swoole 协程模式。" . PHP_EOL;
+        return;
+      }
+      $worker = new $swooleWorkerClass($queues, $concurrency, $maxJobs, $maxTime, $memory, $sleep);
+      $worker->run();
+    } else {
+      $worker = new Worker($queues, $maxJobs, $maxTime, $memory, $sleep);
+      $worker->run();
+    }
   }
 
   /**

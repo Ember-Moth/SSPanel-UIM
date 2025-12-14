@@ -4,37 +4,55 @@ declare(strict_types=1);
 
 namespace App\Services;
 
+
 use Redis;
+use Swoole\Coroutine\Redis as CoRedis;
 
 final class Cache
 {
-    public function initRedis(): Redis
+
+    /**
+     * 初始化 Redis 客户端
+     * @param bool $swoole 是否使用 Swoole 协程客户端
+     * @return Redis|CoRedis
+     */
+    public function initRedis(bool $swoole = false)
     {
-        $redis = new Redis();
         $config = self::getRedisConfig();
-
-        $redis->connect(
-            $config['host'],
-            $config['port'],
-            $config['connectTimeout']
-        );
-
-        $redis->setOption(Redis::OPT_READ_TIMEOUT, $config['readTimeout']);
-
-        if (isset($config['auth'])) {
-            if (isset($config['auth']['user']) && isset($config['auth']['pass'])) {
-                $redis->auth([$config['auth']['user'], $config['auth']['pass']]);
-            } elseif (isset($config['auth']['pass'])) {
-                $redis->auth($config['auth']['pass']);
+        if ($swoole) {
+            $redis = new CoRedis();
+            $redis->connect($config['host'], $config['port']);
+            if (isset($config['auth'])) {
+                if (isset($config['auth']['user']) && isset($config['auth']['pass'])) {
+                    $redis->auth([$config['auth']['user'], $config['auth']['pass']]);
+                } elseif (isset($config['auth']['pass'])) {
+                    $redis->auth($config['auth']['pass']);
+                }
             }
+            if (isset($config['database'])) {
+                $redis->select((int)$config['database']);
+            }
+            return $redis;
+        } else {
+            $redis = new Redis();
+            $redis->connect(
+                $config['host'],
+                $config['port'],
+                $config['connectTimeout']
+            );
+            $redis->setOption(Redis::OPT_READ_TIMEOUT, $config['readTimeout']);
+            if (isset($config['auth'])) {
+                if (isset($config['auth']['user']) && isset($config['auth']['pass'])) {
+                    $redis->auth([$config['auth']['user'], $config['auth']['pass']]);
+                } elseif (isset($config['auth']['pass'])) {
+                    $redis->auth($config['auth']['pass']);
+                }
+            }
+            if (isset($config['database'])) {
+                $redis->select((int)$config['database']);
+            }
+            return $redis;
         }
-
-        // 切换数据库
-        if (isset($config['database'])) {
-            $redis->select((int)$config['database']);
-        }
-
-        return $redis;
     }
 
     public static function getRedisConfig(): array
