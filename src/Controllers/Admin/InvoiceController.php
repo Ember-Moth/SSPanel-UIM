@@ -78,6 +78,13 @@ final class InvoiceController extends BaseController
         $invoice_id = $args['id'];
         $invoice = (new Invoice())->find($invoice_id);
 
+        if ($invoice === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '账单不存在',
+            ]);
+        }
+
         if (in_array($invoice->status, ['paid_gateway', 'paid_balance', 'paid_admin'])) {
             return $response->withJson([
                 'ret' => 0,
@@ -86,6 +93,13 @@ final class InvoiceController extends BaseController
         }
 
         $order = (new Order())->find($invoice->order_id);
+
+        if ($order === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '关联订单不存在',
+            ]);
+        }
 
         if ($order->status === 'cancelled') {
             return $response->withJson([

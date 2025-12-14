@@ -86,6 +86,11 @@ final class OrderController extends BaseController
         $order->content = json_decode($order->product_content);
 
         $invoice = (new Invoice())->where('order_id', $id)->first();
+
+        if ($invoice === null) {
+            return $response->withStatus(301)->withHeader('Location', '/admin/order');
+        }
+
         $invoice->status = $invoice->status();
         $invoice->create_time = Tools::toDateTime($invoice->create_time);
         $invoice->update_time = Tools::toDateTime($invoice->update_time);
@@ -172,7 +177,10 @@ final class OrderController extends BaseController
 
         $invoice = (new Invoice())->where('order_id', $order_id)->first();
 
-        if ($order->delete() && $invoice->delete()) {
+        $order_deleted = $order->delete();
+        $invoice_deleted = $invoice !== null ? $invoice->delete() : true;
+
+        if ($order_deleted && $invoice_deleted) {
             return $response->withJson([
                 'ret' => 1,
                 'msg' => '删除成功',
@@ -180,7 +188,7 @@ final class OrderController extends BaseController
         }
 
         return $response->withJson([
-            'ret' => 1,
+            'ret' => 0,
             'msg' => '删除失败',
         ]);
     }

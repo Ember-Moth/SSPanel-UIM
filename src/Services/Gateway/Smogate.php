@@ -78,11 +78,16 @@ final class Smogate extends Base
             ]);
         }
 
-        $pl = new Paylist();
-        $pl->userid = $user->id;
-        $pl->total = $amount;
-        $pl->invoice_id = $invoice_id;
-        $pl->tradeno = self::generateGuid();
+        $pl = (new Paylist())->where('invoice_id', $invoice_id)->first();
+
+        if ($pl === null) {
+            $pl = new Paylist();
+            $pl->userid = $user->id;
+            $pl->total = $amount;
+            $pl->invoice_id = $invoice_id;
+            $pl->tradeno = self::generateGuid();
+        }
+
         $pl->gateway = self::_readableName();
         $pl->save();
 

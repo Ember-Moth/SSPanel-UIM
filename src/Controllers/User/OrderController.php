@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Product;
 use App\Models\UserCoupon;
+use App\Services\DB;
 use App\Utils\Cookie;
 use App\Utils\Tools;
 use Exception;
@@ -98,6 +99,11 @@ final class OrderController extends BaseController
         $order->content = json_decode($order->product_content);
 
         $invoice = (new Invoice())->where('order_id', $id)->first();
+
+        if ($invoice === null) {
+            return $response->withRedirect('/user/order');
+        }
+
         $invoice->status = $invoice->status();
         $invoice->create_time = Tools::toDateTime($invoice->create_time);
         $invoice->update_time = Tools::toDateTime($invoice->update_time);
@@ -221,8 +227,10 @@ final class OrderController extends BaseController
             ]);
         }
 
-        if ($product_limit->node_group_required !== ''
-            && $user->node_group !== (int) $product_limit->node_group_required) {
+        if (
+            $product_limit->node_group_required !== ''
+            && $user->node_group !== (int) $product_limit->node_group_required
+        ) {
             return $response->withJson([
                 'ret' => 0,
                 'msg' => '你所在的用户组无法购买此商品',
@@ -306,37 +314,50 @@ final class OrderController extends BaseController
             ]);
         }
 
-        $order = new Order();
-        $order->user_id = $this->user->id;
-        $order->product_id = 0;
-        $order->product_type = 'topup';
-        $order->product_name = '余额充值';
-        $order->product_content = json_encode(['amount' => $amount]);
-        $order->coupon = '';
-        $order->price = $amount;
-        $order->status = 'pending_payment';
-        $order->create_time = time();
-        $order->update_time = time();
-        $order->save();
+        try {
+            DB::beginTransaction();
 
-        $invoice_content = [];
-        $invoice_content[] = [
-            'content_id' => 0,
-            'name' => '余额充值',
-            'price' => $amount,
-        ];
+            $order = new Order();
+            $order->user_id = $this->user->id;
+            $order->product_id = 0;
+            $order->product_type = 'topup';
+            $order->product_name = '余额充值';
+            $order->product_content = json_encode(['amount' => $amount]);
+            $order->coupon = '';
+            $order->price = $amount;
+            $order->status = 'pending_payment';
+            $order->create_time = time();
+            $order->update_time = time();
+            $order->save();
 
-        $invoice = new Invoice();
-        $invoice->user_id = $this->user->id;
-        $invoice->order_id = $order->id;
-        $invoice->content = json_encode($invoice_content);
-        $invoice->price = $amount;
-        $invoice->status = 'unpaid';
-        $invoice->create_time = time();
-        $invoice->update_time = time();
-        $invoice->pay_time = 0;
-        $invoice->type = 'topup';
-        $invoice->save();
+            $invoice_content = [];
+            $invoice_content[] = [
+                'content_id' => 0,
+                'name' => '余额充值',
+                'price' => $amount,
+            ];
+
+            $invoice = new Invoice();
+            $invoice->user_id = $this->user->id;
+            $invoice->order_id = $order->id;
+            $invoice->content = json_encode($invoice_content);
+            $invoice->price = $amount;
+            $invoice->status = 'unpaid';
+            $invoice->create_time = time();
+            $invoice->update_time = time();
+            $invoice->pay_time = 0;
+            $invoice->type = 'topup';
+            $invoice->save();
+
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '订单创建失败，请稍后再试',
+            ]);
+        }
 
         return $response->withHeader('HX-Redirect', '/user/invoice/' . $invoice->id . '/view');
     }
@@ -349,9 +370,11 @@ final class OrderController extends BaseController
             $order->op = '<a class="btn btn-primary" href="/user/order/' . $order->id . '/view">查看</a>';
 
             if ($order->status === 'pending_payment') {
-                $invoice_id = (new Invoice())->where('order_id', $order->id)->first()->id;
-                $order->op .= '
-                <a class="btn btn-red" href="/user/invoice/' . $invoice_id . '/view">支付</a>';
+                $invoice = (new Invoice())->where('order_id', $order->id)->first();
+                if ($invoice !== null) {
+                    $order->op .= '
+                <a class="btn btn-red" href="/user/invoice/' . $invoice->id . '/view">支付</a>';
+                }
             }
 
             $order->product_type = $order->productType();
