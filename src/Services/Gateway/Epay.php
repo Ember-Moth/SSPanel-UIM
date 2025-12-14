@@ -35,12 +35,12 @@ final class Epay extends Base
     public function __construct()
     {
         $this->antiXss = new AntiXSS();
-        $this->epay['apiurl'] = Config::obtain('epay_url');//易支付API地址
-        $this->epay['partner'] = Config::obtain('epay_pid');//易支付商户pid
-        $this->epay['key'] = Config::obtain('epay_key');//易支付商户Key
+        $this->epay['apiurl'] = Config::obtain('epay_url'); //易支付API地址
+        $this->epay['partner'] = Config::obtain('epay_pid'); //易支付商户pid
+        $this->epay['key'] = Config::obtain('epay_key'); //易支付商户Key
         $this->epay['sign_type'] = strtoupper(Config::obtain('epay_sign_type')); //签名方式
-        $this->epay['input_charset'] = strtolower('utf-8');//字符编码
-        $this->epay['transport'] = 'https';//协议 http 或者https
+        $this->epay['input_charset'] = strtolower('utf-8'); //字符编码
+        $this->epay['transport'] = 'https'; //协议 http 或者https
     }
 
     public static function _name(): string
@@ -119,33 +119,11 @@ final class Epay extends Base
         $epaySubmit = new EpaySubmit($this->epay);
         $data['sign'] = $epaySubmit->buildRequestMysign(EpayTool::argSort($data));
         $data['sign_type'] = $this->epay['sign_type'];
-        $client = new Client();
 
-        try {
-            $res = json_decode(
-                $client->request(
-                    'POST',
-                    $this->epay['apiurl'] . 'mapi.php',
-                    ['form_params' => $data]
-                )->getBody()->__toString(),
-                true
-            );
+        // 构建支付URL，使用 submit.php 跳转方式
+        $payUrl = rtrim($this->epay['apiurl'], '/') . '/submit.php?' . http_build_query($data);
 
-            if ($res['code'] !== 1 || ! isset($res['payurl'])) {
-                return $response->withJson([
-                    'ret' => 0,
-                    'msg' => '请求支付失败，网关错误',
-                    //TODO: use syslog to log this error
-                ]);
-            }
-
-            return $response->withHeader('HX-Redirect', $res['payurl']);
-        } catch (GuzzleException) {
-            return $response->withJson([
-                'ret' => 0,
-                'msg' => '请求支付失败，网关错误',
-            ]);
-        }
+        return $response->withHeader('HX-Redirect', $payUrl);
     }
 
     public function notify($request, $response, $args): ResponseInterface
