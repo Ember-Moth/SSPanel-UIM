@@ -68,9 +68,6 @@ EOL;
     {
         $options = $this->parseOptions(array_slice($this->argv, 3));
 
-        // 解析队列参数
-        $queuesString = $options['queue'] ?? 'default';
-        $queues = array_map('trim', explode(',', $queuesString));
 
         // 验证队列名称
         $validQueues = [
@@ -79,10 +76,15 @@ EOL;
             RedisQueue::QUEUE_NOTIFICATION,
             RedisQueue::QUEUE_HIGH,
         ];
-
-        foreach ($queues as $queue) {
-            if (!in_array($queue, $validQueues, true)) {
-                echo "警告: 队列 '{$queue}' 不是预定义队列，但仍会监听" . PHP_EOL;
+        if (!isset($options['queue'])) {
+            $queues = $validQueues;
+        } else {
+            $queuesString = $options['queue'];
+            $queues = array_map('trim', explode(',', $queuesString));
+            foreach ($queues as $queue) {
+                if (!in_array($queue, $validQueues, true)) {
+                    echo "警告: 队列 '{$queue}' 不是预定义队列，但仍会监听" . PHP_EOL;
+                }
             }
         }
 
