@@ -362,12 +362,4 @@ final class Tools
 
         return true;
     }
-
-    /**
-     * 获取站点域名
-     */
-    public static function getSiteDomain(): string
-    {
-        return parse_url($_ENV['baseUrl'], PHP_URL_HOST);
-    }
 }

@@ -70,11 +70,16 @@
                                 <label class="form-label col-3 col-form-label">接入类型</label>
                                 <div class="col">
                                     <select id="sort" class="col form-select" value="{$node->sort}">
-                                        <option value="14" {if $node->sort === 14}selected{/if}>Trojan</option>
-                                        <option value="11" {if $node->sort === 11}selected{/if}>Vmess</option>
-                                        <option value="2" {if $node->sort === 2}selected{/if}>TUIC</option>
-                                        <option value="1" {if $node->sort === 1}selected{/if}>Shadowsocks2022</option>
-                                        <option value="0" {if $node->sort === 0}selected{/if}>Shadowsocks</option>
+                                        <option value="1" {if $node->sort === 1}selected{/if}>Shadowsocks</option>
+                                        <option value="2" {if $node->sort === 2}selected{/if}>Trojan</option>
+                                        <option value="3" {if $node->sort === 3}selected{/if}>Vless</option>
+                                        <option value="4" {if $node->sort === 4}selected{/if}>Vmess</option>
+                                        <option value="5" {if $node->sort === 5}selected{/if}>Hysteria2</option>
+                                        <option value="6" {if $node->sort === 6}selected{/if}>TUIC</option>
+                                        <option value="7" {if $node->sort === 7}selected{/if}>AnyTLS</option>
+                                        <option value="8" {if $node->sort === 8}selected{/if}>Mieru</option>
+                                        <option value="9" {if $node->sort === 9}selected{/if}>Naive</option>
+                                        <option value="10" {if $node->sort === 10}selected{/if}>Wireguard</option>
                                     </select>
                                 </div>
                             </div>

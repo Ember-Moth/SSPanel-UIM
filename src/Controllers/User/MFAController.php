@@ -5,10 +5,7 @@ declare(strict_types=1);
 namespace App\Controllers\User;
 
 use App\Controllers\BaseController;
-use App\Models\MFADevice;
-use App\Services\MFA\FIDO;
-use App\Services\MFA\TOTP;
-use App\Services\MFA\WebAuthn;
+use App\Services\MFA;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Response;
@@ -19,104 +16,80 @@ use Slim\Http\ServerRequest;
  */
 final class MFAController extends BaseController
 {
-    public function webauthnRegisterRequest(ServerRequest $request, Response $response, array $args): ResponseInterface
+    public function checkGa(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        return $response->withJson(WebAuthn::RegisterRequest($this->user));
-    }
+        $code = $request->getParam('code');
 
-    public function webauthnRegisterHandle(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        try {
-            return $response->withJson(WebAuthn::RegisterHandle($this->user, $this->antiXss->xss_clean($request)));
-        } catch (Exception $e) {
-            return $response->withJson(['ret' => 0, 'msg' => '请求失败: ' . $e->getMessage()]);
-        }
-    }
-
-    public function webauthnDelete(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        $webauthnDevice = (new MFADevice())
-            ->where('id', (int) $args['id'])
-            ->where('userid', $this->user->id)
-            ->where('type', 'passkey')
-            ->first();
-        if ($webauthnDevice === null) {
+        if ($code === '') {
             return $response->withJson([
                 'ret' => 0,
-                'msg' => '设备不存在',
+                'msg' => '二维码不能为空',
             ]);
         }
-        $webauthnDevice->delete();
-        return $response->withHeader('HX-Refresh', 'true')->withJson([
+
+        if (! MFA::verifyGa($this->user, $code)) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '测试错误',
+            ]);
+        }
+
+        return $response->withJson([
             'ret' => 1,
-            'msg' => '删除成功',
+            'msg' => '测试成功',
         ]);
     }
 
-    public function totpRegisterRequest(ServerRequest $request, Response $response, array $args): ResponseInterface
+    public function setGa(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        return $response->withJson(TOTP::RegisterRequest($this->user));
-    }
+        $enable = $request->getParam('enable');
 
-    public function totpRegisterHandle(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        try {
-            return $response->withJson(TOTP::RegisterHandle($this->user, $this->antiXss->xss_clean($request->getParam('code', ''))));
-        } catch (Exception $e) {
-            return $response->withJson(['ret' => 0, 'msg' => '请求失败: ' . $e->getMessage()]);
-        }
-    }
-
-    public function totpDelete(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        $totpDevice = (new MFADevice())
-            ->where('userid', $this->user->id)
-            ->where('type', 'totp')
-            ->first();
-        if ($totpDevice === null) {
+        if ($enable === '') {
             return $response->withJson([
                 'ret' => 0,
-                'msg' => '设备不存在',
+                'msg' => '选项无效',
             ]);
         }
-        $totpDevice->delete();
-        return $response->withHeader('HX-Refresh', 'true')->withJson([
-            'ret' => 1,
-            'msg' => '删除成功',
+
+        $user = $this->user;
+        $user->ga_enable = $enable;
+        $user->save();
+
+        if ($user->save()) {
+            return $response->withJson([
+                'ret' => 1,
+                'msg' => '设置成功',
+            ]);
+        }
+
+        return $response->withJson([
+            'ret' => 0,
+            'msg' => '设置失败',
         ]);
     }
 
-    public function fidoRegisterRequest(ServerRequest $request, Response $response, array $args): ResponseInterface
+    /**
+     * @throws Exception
+     */
+    public function resetGa(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        return $response->withJson(FIDO::RegisterRequest($this->user));
-    }
+        $user = $this->user;
+        $user->ga_token = MFA::generateGaToken();
 
-    public function fidoRegisterHandle(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        try {
-            return $response->withJson(FIDO::RegisterHandle($this->user, $this->antiXss->xss_clean($request->getParsedBody())));
-        } catch (Exception $e) {
-            return $response->withJson(['ret' => 0, 'msg' => '请求失败: ' . $e->getMessage()]);
-        }
-    }
-
-    public function fidoDelete(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        $fidoDevice = (new MFADevice())
-            ->where('id', (int) $args['id'])
-            ->where('userid', $this->user->id)
-            ->where('type', 'fido')
-            ->first();
-        if ($fidoDevice === null) {
+        if ($user->save()) {
             return $response->withJson([
-                'ret' => 0,
-                'msg' => '设备不存在',
+                'ret' => 1,
+                'msg' => '重置成功',
+                'data' => [
+                    'ga-token' => $user->ga_token,
+                    'ga-url' => MFA::getGaUrl($user),
+                ],
             ]);
         }
-        $fidoDevice->delete();
-        return $response->withHeader('HX-Refresh', 'true')->withJson([
-            'ret' => 1,
-            'msg' => '删除成功',
+
+        return $response->withJson([
+            'ret' => 0,
+            'msg' => '重置失败',
         ]);
     }
 }

@@ -69,7 +69,6 @@ final class View
             'enable_change_email' => $_ENV['enable_change_email'],
             'enable_r2_client_download' => $_ENV['enable_r2_client_download'],
             'jsdelivr_url' => $_ENV['jsdelivr_url'],
-            'enable_telemetry' => $_ENV['enable_telemetry'] ?? true,
             // site default language
             'locale' => $_ENV['locale'],
         ];

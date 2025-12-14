@@ -41,7 +41,7 @@
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
                                             <label class="form-label col-3 col-form-label">
-                                                Enable Shadowsocks Subscription
+                                                企业 Shadowsocks 订阅
                                             </label>
                                             <div class="col">
                                                 <select id="enable_ss_sub" class="col form-select"
@@ -57,7 +57,7 @@
                                         </div>
                                         <div class="form-group mb-3 row">
                                             <label class="form-label col-3 col-form-label">
-                                                Enable Vmess Subscription
+                                                启用 Vmess 订阅
                                             </label>
                                             <div class="col">
                                                 <select id="enable_v2_sub" class="col form-select"
@@ -73,7 +73,7 @@
                                         </div>
                                         <div class="form-group mb-3 row">
                                             <label class="form-label col-3 col-form-label">
-                                                Enable Trojan Subscription
+                                                启用 Trojan 订阅
                                             </label>
                                             <div class="col">
                                                 <select id="enable_trojan_sub" class="col form-select"

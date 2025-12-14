@@ -74,15 +74,9 @@ return static function (Slim\App $app): void {
         // 发送验证邮件
         $group->post('/edit/send', App\Controllers\AuthController::class . ':sendVerify');
         // MFA
-        $group->get('/totp', App\Controllers\User\MFAController::class . ':totpRegisterRequest');
-        $group->post('/totp', App\Controllers\User\MFAController::class . ':totpRegisterHandle');
-        $group->delete('/totp', App\Controllers\User\MFAController::class . ':totpDelete');
-        $group->get('/webauthn', App\Controllers\User\MFAController::class . ':webauthnRegisterRequest');
-        $group->post('/webauthn', App\Controllers\User\MFAController::class . ':webauthnRegisterHandle');
-        $group->delete('/webauthn/{id:[0-9]+}', App\Controllers\User\MFAController::class . ':webauthnDelete');
-        $group->get('/fido', App\Controllers\User\MFAController::class . ':fidoRegisterRequest');
-        $group->post('/fido', App\Controllers\User\MFAController::class . ':fidoRegisterHandle');
-        $group->delete('/fido/{id:[0-9]+}', App\Controllers\User\MFAController::class . ':fidoDelete');
+        $group->post('/ga_check', App\Controllers\User\MFAController::class . ':checkGa');
+        $group->post('/ga_set', App\Controllers\User\MFAController::class . ':setGa');
+        $group->post('/ga_reset', App\Controllers\User\MFAController::class . ':resetGa');
         // 账户余额
         $group->get('/money', App\Controllers\User\MoneyController::class . ':index');
         $group->post('/giftcard', App\Controllers\User\MoneyController::class . ':applyGiftCard');
@@ -123,12 +117,6 @@ return static function (Slim\App $app): void {
         $group->post('/register', App\Controllers\AuthController::class . ':registerHandle');
         $group->post('/send', App\Controllers\AuthController::class . ':sendVerify');
         $group->get('/logout', App\Controllers\AuthController::class . ':logout');
-        $group->get('/webauthn', App\Controllers\AuthController::class . ':webauthnRequest');
-        $group->post('/webauthn', App\Controllers\AuthController::class . ':webauthnHandle');
-        $group->get('/mfa', App\Controllers\AuthController::class . ':mfaPage');
-        $group->post('/totp', App\Controllers\AuthController::class . ':totpHandle');
-        $group->get('/fido', App\Controllers\AuthController::class . ':fidoRequest');
-        $group->post('/fido', App\Controllers\AuthController::class . ':fidoHandle');
     })->add(new Guest());
     // Password
     $app->group('/password', static function (RouteCollectorProxy $group): void {

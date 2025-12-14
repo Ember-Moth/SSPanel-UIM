@@ -269,7 +269,7 @@
                                 <div class="tab-pane" id="paypal">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Mode</label>
+                                            <label class="form-label col-3 col-form-label">模式</label>
                                             <div class="col">
                                                 <select id="paypal_mode" class="col form-select"
                                                         value="{$settings['paypal_mode']}">
@@ -305,14 +305,14 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Currency</label>
+                                            <label class="form-label col-3 col-form-label">货币</label>
                                             <div class="col">
                                                 <input id="paypal_currency" type="text" class="form-control"
                                                        value="{$settings['paypal_currency']}">
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Language</label>
+                                            <label class="form-label col-3 col-form-label">语言</label>
                                             <div class="col">
                                                 <input id="paypal_locale" type="text" class="form-control"
                                                        value="{$settings['paypal_locale']}">
@@ -341,7 +341,7 @@
                                 <div class="tab-pane" id="cryptomus">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api key</label>
+                                            <label class="form-label col-3 col-form-label">API key</label>
                                             <div class="col">
                                                 <input id="cryptomus_api_key" type="password" class="form-control"
                                                        value="{$settings['cryptomus_api_key']}">
@@ -357,7 +357,7 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Subtract</label>
+                                            <label class="form-label col-3 col-form-label">手续费</label>
                                             <div class="col">
                                                 <input id="cryptomus_subtract" type="number" class="form-control"
                                                        value="{$settings['cryptomus_subtract']}">
@@ -365,20 +365,20 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Lifetime</label>
+                                            <label class="form-label col-3 col-form-label">订单有效期</label>
                                             <div class="col">
                                                 <input id="cryptomus_lifetime" type="number" class="form-control"
                                                        value="{$settings['cryptomus_lifetime']}">
                                                 <span>The lifespan of the issued invoice.(In seconds)</span>
                                             </div>
                                         </div>
-{*                                        <div class="form-group mb-3 row">*}
-{*                                            <label class="form-label col-3 col-form-label">Currency</label>*}
-{*                                            <div class="col">*}
-{*                                                <input id="cryptomus_currency" type="text" class="form-control"*}
-{*                                                       value="{$settings['cryptomus_currency']}">*}
-{*                                            </div>*}
-{*                                        </div>*}
+                                          <div class="form-group mb-3 row">
+                                              <label class="form-label col-3 col-form-label">货币</label>
+                                              <div class="col">
+                                                  <input id="cryptomus_currency" type="text" class="form-control"
+                                                         value="{$settings['cryptomus_currency']}">
+                                              </div>
+                                          </div>
                                     </div>
                                 </div>
                             </div>
