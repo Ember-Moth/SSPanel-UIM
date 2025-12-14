@@ -603,4 +603,15 @@ final class Cron
 
         echo Tools::toDateTime(time()) . ' 更新节点 IP 完成' . PHP_EOL;
     }
+
+    /**
+     * 同步 Redis 流量缓存到数据库
+     */
+    public static function syncUsageCache(): void
+    {
+        $usage = new Usage();
+        $stats = $usage->syncToDatabase();
+
+        echo Tools::toDateTime(time()) . " 流量缓存同步完成: 用户 {$stats['users']}, 节点 {$stats['nodes']}, 日志 {$stats['hourly_logs']}" . PHP_EOL;
+    }
 }

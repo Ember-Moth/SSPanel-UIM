@@ -7,11 +7,11 @@ namespace App\Controllers\WebAPI;
 use App\Controllers\BaseController;
 use App\Models\Config;
 use App\Models\DetectLog;
-use App\Models\HourlyUsage;
 use App\Models\Node;
 use App\Models\OnlineLog;
 use App\Models\User;
 use App\Services\DynamicRate;
+use App\Services\Usage;
 use App\Utils\ResponseHelper;
 use App\Utils\Tools;
 use Psr\Http\Message\ResponseInterface;
@@ -98,12 +98,13 @@ final class UserController extends BaseController
                 }
             }
 
-            if ($user_raw->node_iplimit !== 0 &&
+            if (
+                $user_raw->node_iplimit !== 0 &&
                 $user_raw->node_iplimit <
                 (new OnlineLog())
-                    ->where('user_id', $user_raw->id)
-                    ->where('last_time', '>', time() - 90)
-                    ->count()
+                ->where('user_id', $user_raw->id)
+                ->where('last_time', '>', time() - 90)
+                ->count()
             ) {
                 continue;
             }
@@ -175,39 +176,24 @@ final class UserController extends BaseController
         }
 
         $sum = 0;
-        $is_traffic_log = Config::obtain('traffic_log');
+        $usage = new Usage();
 
         foreach ($data as $log) {
-            $u = $log?->u;
-            $d = $log?->d;
-            $user_id = $log?->user_id;
+            $u = (int) ($log?->u ?? 0);
+            $d = (int) ($log?->d ?? 0);
+            $user_id = (int) ($log?->user_id ?? 0);
 
-            if ($user_id) {
-                $billed_u = $u * $rate;
-                $billed_d = $d * $rate;
-
-                $user = (new User())->find($user_id);
-
-                $user->update([
-                    'last_use_time' => time(),
-                    'u' => $user->u + $billed_u,
-                    'd' => $user->d + $billed_d,
-                    'transfer_total' => $user->transfer_total + $u + $d,
-                    'transfer_today' => $user->transfer_today + $billed_u + $billed_d,
-                ]);
-            }
-
-            if ($is_traffic_log) {
-                (new HourlyUsage())->add((int) $user_id, (int) ($u + $d));
+            if ($user_id > 0 && ($u > 0 || $d > 0)) {
+                // 写入 Redis 缓存
+                $usage->addUserTraffic($user_id, $u, $d, $rate);
+                $usage->addHourlyUsage($user_id, $u + $d);
             }
 
             $sum += $u + $d;
         }
 
-        $node->update([
-            'node_bandwidth' => $node->node_bandwidth + $sum,
-            'online_user' => count($data) - 1,
-        ]);
+        // 节点流量和在线用户数写入 Redis
+        $usage->addNodeTraffic((int) $node_id, $sum, count($data) - 1);
 
         return ResponseHelper::success($response, 'ok');
     }

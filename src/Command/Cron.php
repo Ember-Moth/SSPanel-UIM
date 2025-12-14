@@ -32,6 +32,9 @@ EOL;
 
         $jobs = new CronService();
 
+        // Sync usage cache to database (every minute)
+        $jobs->syncUsageCache();
+
         // Run new shop related jobs
         $jobs->processPendingOrder();
         $jobs->processTabpOrderExpiration();
