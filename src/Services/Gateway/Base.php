@@ -136,7 +136,7 @@ abstract class Base
 
     protected static function getCallbackUrl(): string
     {
-        return $_ENV['baseUrl'] . '/payment/notify/' . get_called_class()::_name();
+        return Config::getApiUrl() . '/payment/notify/' . get_called_class()::_name();
     }
 
     protected static function getUserReturnUrl(): string

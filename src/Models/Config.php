@@ -101,4 +101,14 @@ final class Config extends Model
 
         return true;
     }
+
+    /**
+     * 获取 API URL，用于支付回调等外部访问场景
+     * 如果 apiUrl 配置为空，则回退到 baseUrl
+     */
+    public static function getApiUrl(): string
+    {
+        $apiUrl = $_ENV['apiUrl'] ?? '';
+        return $apiUrl !== '' ? $apiUrl : $_ENV['baseUrl'];
+    }
 }
