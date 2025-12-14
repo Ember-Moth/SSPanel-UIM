@@ -116,7 +116,11 @@ abstract class Base
 
         // 支付成功后立即尝试激活订单
         $order = (new Order())->where('id', $invoice->order_id)->first();
-        if ($order !== null && $order->status === 'pending_activation') {
+        if ($order !== null && $order->status === 'pending_payment') {
+            $order->status = 'pending_activation';
+            $order->update_time = time();
+            $order->save();
+            // 尝试立即激活订单
             OrderActivation::activateOrder($order);
         }
 
