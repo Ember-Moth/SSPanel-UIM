@@ -34,10 +34,7 @@ EOL;
 
         // Run new shop related jobs
         $jobs->processPendingOrder();
-        $jobs->processTabpOrderActivation();
-        $jobs->processBandwidthOrderActivation();
-        $jobs->processTimeOrderActivation();
-        $jobs->processTopupOrderActivation();
+        $jobs->processTabpOrderExpiration();
 
         // Run user related jobs
         $jobs->expirePaidUserAccount();
@@ -51,7 +48,8 @@ EOL;
         }
 
         // Run daily job
-        if ($hour === Config::obtain('daily_job_hour') &&
+        if (
+            $hour === Config::obtain('daily_job_hour') &&
             $minute === Config::obtain('daily_job_minute') &&
             time() - Config::obtain('last_daily_job_time') > 86399
         ) {
@@ -91,7 +89,8 @@ EOL;
         }
 
         // Daily finance report
-        if (Config::obtain('enable_daily_finance_mail')
+        if (
+            Config::obtain('enable_daily_finance_mail')
             && $hour === 0
             && $minute === 0
         ) {
@@ -99,7 +98,8 @@ EOL;
         }
 
         // Weekly finance report
-        if (Config::obtain('enable_weekly_finance_mail')
+        if (
+            Config::obtain('enable_weekly_finance_mail')
             && $hour === 0
             && $minute === 0
             && date('w') === '1'
@@ -108,7 +108,8 @@ EOL;
         }
 
         // Monthly finance report
-        if (Config::obtain('enable_monthly_finance_mail')
+        if (
+            Config::obtain('enable_monthly_finance_mail')
             && $hour === 0
             && $minute === 0
             && date('d') === '01'
@@ -117,14 +118,16 @@ EOL;
         }
 
         // Detect GFW
-        if (Config::obtain('enable_detect_gfw') && $minute === 0
+        if (
+            Config::obtain('enable_detect_gfw') && $minute === 0
         ) {
             $detect = new Detect();
             $detect->gfw();
         }
 
         // Detect ban
-        if (Config::obtain('enable_detect_ban') && $minute === 0
+        if (
+            Config::obtain('enable_detect_ban') && $minute === 0
         ) {
             $detect = new Detect();
             $detect->ban();

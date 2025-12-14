@@ -8,6 +8,7 @@ use App\Controllers\BaseController;
 use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Paylist;
+use App\Services\OrderActivation;
 use App\Utils\Tools;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
@@ -121,6 +122,9 @@ final class InvoiceController extends BaseController
         $invoice->pay_time = time();
         $invoice->status = 'paid_admin';
         $invoice->save();
+
+        // 尝试立即激活订单
+        OrderActivation::activateOrder($order);
 
         return $response->withJson([
             'ret' => 1,

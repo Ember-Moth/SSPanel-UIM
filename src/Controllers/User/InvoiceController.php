@@ -6,9 +6,11 @@ namespace App\Controllers\User;
 
 use App\Controllers\BaseController;
 use App\Models\Invoice;
+use App\Models\Order;
 use App\Models\Paylist;
 use App\Models\UserMoneyLog;
 use App\Services\DB;
+use App\Services\OrderActivation;
 use App\Services\Payment;
 use App\Utils\Tools;
 use Exception;
@@ -166,6 +168,16 @@ final class InvoiceController extends BaseController
         }
 
         if ($invoice->status === 'paid_balance') {
+            // 更新关联订单状态并尝试激活
+            $order = (new Order())->find($invoice->order_id);
+            if ($order !== null && $order->status === 'pending_payment') {
+                $order->status = 'pending_activation';
+                $order->update_time = time();
+                $order->save();
+                // 尝试立即激活订单
+                OrderActivation::activateOrder($order);
+            }
+
             return $response->withHeader('HX-Redirect', '/user/invoice');
         }
 

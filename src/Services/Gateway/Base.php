@@ -6,10 +6,12 @@ namespace App\Services\Gateway;
 
 use App\Models\Config;
 use App\Models\Invoice;
+use App\Models\Order;
 use App\Models\Paylist;
 use App\Models\User;
 use App\Models\UserMoneyLog;
 use App\Services\DB;
+use App\Services\OrderActivation;
 use App\Services\Reward;
 use App\Utils\Tools;
 use Exception;
@@ -110,6 +112,12 @@ abstract class Base
         } catch (Exception $e) {
             DB::rollBack();
             return;
+        }
+
+        // 支付成功后立即尝试激活订单
+        $order = (new Order())->where('id', $invoice->order_id)->first();
+        if ($order !== null && $order->status === 'pending_activation') {
+            OrderActivation::activateOrder($order);
         }
 
         if ($user->ref_by > 0 && Config::obtain('invite_mode') === 'reward') {
