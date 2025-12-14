@@ -41,7 +41,7 @@
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
                                             <label class="form-label col-3 col-form-label">
-                                                企业 Shadowsocks 订阅
+                                                启用 Shadowsocks 订阅
                                             </label>
                                             <div class="col">
                                                 <select id="enable_ss_sub" class="col form-select"
