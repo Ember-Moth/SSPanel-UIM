@@ -94,7 +94,7 @@ final class Cron
                         $_ENV['appName'] . '-系统警告',
                         '管理员你好，系统发现节点 ' . $node->name . ' 掉线了，请你及时处理。'
                     );
-                } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+                } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
                     echo $e->getMessage() . PHP_EOL;
                 }
 
@@ -126,7 +126,7 @@ final class Cron
                         $_ENV['appName'] . '-系统提示',
                         '管理员你好，系统发现节点 ' . $node->name . ' 恢复上线了。'
                     );
-                } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+                } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
                     echo $e->getMessage() . PHP_EOL;
                 }
 
@@ -168,7 +168,7 @@ final class Cron
 
                 try {
                     Notification::notifyUser($user, $_ENV['appName'] . '-你的账号等级已经过期了', $text);
-                } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+                } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
                     echo $e->getMessage() . PHP_EOL;
                 }
 
@@ -220,7 +220,7 @@ final class Cron
                             $email_queue['template'],
                             json_decode($email_queue['array'])
                         );
-                    } catch (Exception|ClientExceptionInterface $e) {
+                    } catch (Exception | ClientExceptionInterface $e) {
                         echo $e->getMessage();
                     }
                 } else {
@@ -236,39 +236,63 @@ final class Cron
 
     public static function processTabpOrderActivation(): void
     {
-        $users = User::all();
+        // 先处理已激活TABP订单的过期检查
+        $activated_orders = (new Order())->where('status', 'activated')
+            ->where('product_type', 'tabp')
+            ->get();
 
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户已激活的TABP订单，一个用户同时只能有一个已激活的TABP订单
-            $activated_order = (new Order())->where('user_id', $user_id)
+        foreach ($activated_orders as $activated_order) {
+            $content = json_decode($activated_order->product_content);
+
+            if ($content === null) {
+                echo "TABP订单 #{$activated_order->id} 内容解析失败，跳过过期检查。\n";
+                continue;
+            }
+
+            if ($activated_order->update_time + $content->time * 86400 < time()) {
+                $activated_order->status = 'expired';
+                $activated_order->update_time = time();
+                $activated_order->save();
+                echo "TABP订单 #{$activated_order->id} 已过期。\n";
+            }
+        }
+
+        // 获取所有待激活的TABP订单
+        $pending_orders = (new Order())->where('status', 'pending_activation')
+            ->where('product_type', 'tabp')
+            ->orderBy('id')
+            ->get();
+
+        foreach ($pending_orders as $order) {
+            $user_id = $order->user_id;
+
+            // 检查用户是否有已激活的TABP订单
+            $has_activated = (new Order())->where('user_id', $user_id)
                 ->where('status', 'activated')
                 ->where('product_type', 'tabp')
-                ->orderBy('id')
-                ->first();
-            // 获取用户账户等待激活的TABP订单
-            $pending_activation_orders = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'tabp')
-                ->orderBy('id')
-                ->get();
-            // 如果用户账户中有已激活的TABP订单，则判断是否过期
-            if ($activated_order !== null) {
-                $content = json_decode($activated_order->product_content);
+                ->exists();
 
-                if ($activated_order->update_time + $content->time * 86400 < time()) {
-                    $activated_order->status = 'expired';
-                    $activated_order->update_time = time();
-                    $activated_order->save();
-                    echo "TABP订单 #{$activated_order->id} 已过期。\n";
-                    $activated_order = null; // 先检查过期，再激活新订单，避免服务中断
-                }
+            if ($has_activated) {
+                continue; // 用户已有激活的TABP订单，跳过
             }
-            // 如果用户账户中没有已激活的TABP订单，且有等待激活的TABP订单，则激活最早的等待激活TABP订单
-            if ($activated_order === null && count($pending_activation_orders) > 0) {
-                $order = $pending_activation_orders[0];
-                // 获取TABP订单内容准备激活
-                $content = json_decode($order->product_content);
+
+            $user = (new User())->find($user_id);
+
+            if ($user === null) {
+                echo "TABP订单 #{$order->id} 关联用户不存在，跳过激活。\n";
+                continue;
+            }
+
+            $content = json_decode($order->product_content);
+
+            if ($content === null) {
+                echo "TABP订单 #{$order->id} 内容解析失败，跳过激活。\n";
+                continue;
+            }
+
+            try {
+                DB::beginTransaction();
+
                 // 激活TABP
                 $user->u = 0;
                 $user->d = 0;
@@ -282,10 +306,16 @@ final class Cron
                 $user->node_speedlimit = $content->speed_limit;
                 $user->node_iplimit = $content->ip_limit;
                 $user->save();
+
                 $order->status = 'activated';
                 $order->update_time = time();
                 $order->save();
+
+                DB::commit();
                 echo "TABP订单 #{$order->id} 已激活。\n";
+            } catch (Exception $e) {
+                DB::rollBack();
+                echo "TABP订单 #{$order->id} 激活失败: {$e->getMessage()}\n";
             }
         }
 
@@ -294,27 +324,43 @@ final class Cron
 
     public static function processBandwidthOrderActivation(): void
     {
-        $users = User::all();
+        // 获取所有待激活的流量包订单
+        $orders = (new Order())->where('status', 'pending_activation')
+            ->where('product_type', 'bandwidth')
+            ->orderBy('id')
+            ->get();
 
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户等待激活的流量包订单
-            $order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'bandwidth')
-                ->orderBy('id')
-                ->first();
+        foreach ($orders as $order) {
+            $user = (new User())->find($order->user_id);
 
-            if ($order !== null) {
-                // 获取流量包订单内容准备激活
-                $content = json_decode($order->product_content);
+            if ($user === null) {
+                echo "流量包订单 #{$order->id} 关联用户不存在，跳过激活。\n";
+                continue;
+            }
+
+            $content = json_decode($order->product_content);
+
+            if ($content === null || ! isset($content->bandwidth)) {
+                echo "流量包订单 #{$order->id} 内容解析失败，跳过激活。\n";
+                continue;
+            }
+
+            try {
+                DB::beginTransaction();
+
                 // 激活流量包
                 $user->transfer_enable += Tools::gbToB($content->bandwidth);
                 $user->save();
+
                 $order->status = 'activated';
                 $order->update_time = time();
                 $order->save();
+
+                DB::commit();
                 echo "流量包订单 #{$order->id} 已激活。\n";
+            } catch (Exception $e) {
+                DB::rollBack();
+                echo "流量包订单 #{$order->id} 激活失败: {$e->getMessage()}\n";
             }
         }
 
@@ -326,23 +372,36 @@ final class Cron
      */
     public static function processTimeOrderActivation(): void
     {
-        $users = User::all();
+        // 获取所有待激活的时间包订单
+        $orders = (new Order())->where('status', 'pending_activation')
+            ->where('product_type', 'time')
+            ->orderBy('id')
+            ->get();
 
-        foreach ($users as $user) {
-            $user_id = $user->id;
-            // 获取用户账户等待激活的时间包订单
-            $order = (new Order())->where('user_id', $user_id)
-                ->where('status', 'pending_activation')
-                ->where('product_type', 'time')
-                ->orderBy('id')
-                ->first();
+        foreach ($orders as $order) {
+            $user = (new User())->find($order->user_id);
 
-            if ($order !== null) {
-                $content = json_decode($order->product_content);
-                // 跳过当前账户等级不等于时间包等级的非免费用户订单
-                if ($user->class !== (int) $content->class && $user->class > 0) {
-                    continue;
-                }
+            if ($user === null) {
+                echo "时间包订单 #{$order->id} 关联用户不存在，跳过激活。\n";
+                continue;
+            }
+
+            $content = json_decode($order->product_content);
+
+            if ($content === null) {
+                echo "时间包订单 #{$order->id} 内容解析失败，跳过激活。\n";
+                continue;
+            }
+
+            // 跳过当前账户等级不等于时间包等级的非免费用户订单
+            if ($user->class !== (int) $content->class && $user->class > 0) {
+                echo "时间包订单 #{$order->id} 用户等级不匹配，跳过激活。\n";
+                continue;
+            }
+
+            try {
+                DB::beginTransaction();
+
                 // 激活时间包
                 $user->class = $content->class;
                 $old_class_expire = new DateTime($user->class_expire);
@@ -352,10 +411,16 @@ final class Cron
                 $user->node_speedlimit = $content->speed_limit;
                 $user->node_iplimit = $content->ip_limit;
                 $user->save();
+
                 $order->status = 'activated';
                 $order->update_time = time();
                 $order->save();
+
+                DB::commit();
                 echo "时间包订单 #{$order->id} 已激活。\n";
+            } catch (Exception $e) {
+                DB::rollBack();
+                echo "时间包订单 #{$order->id} 激活失败: {$e->getMessage()}\n";
             }
         }
 
@@ -376,21 +441,45 @@ final class Cron
         foreach ($orders as $order) {
             $user_id = $order->user_id;
             $user = (new User())->find($user_id);
+
+            if ($user === null) {
+                echo "充值订单 #{$order->id} 关联用户不存在，跳过激活。\n";
+                continue;
+            }
+
             $content = json_decode($order->product_content);
-            // 充值
-            $user->money += $content->amount;
-            $user->save();
-            $order->status = 'activated';
-            $order->update_time = time();
-            $order->save();
-            (new UserMoneyLog())->add(
-                $user_id,
-                $user->money - $content->amount,
-                $user->money,
-                $content->amount,
-                "充值订单 #{$order->id}"
-            );
-            echo "充值订单 #{$order->id} 已激活。\n";
+
+            if ($content === null || ! isset($content->amount)) {
+                echo "充值订单 #{$order->id} 内容解析失败，跳过激活。\n";
+                continue;
+            }
+
+            try {
+                DB::beginTransaction();
+
+                $money_before = $user->money;
+                // 充值
+                $user->money += $content->amount;
+                $user->save();
+
+                $order->status = 'activated';
+                $order->update_time = time();
+                $order->save();
+
+                (new UserMoneyLog())->add(
+                    $user_id,
+                    $money_before,
+                    $user->money,
+                    $content->amount,
+                    "充值订单 #{$order->id}"
+                );
+
+                DB::commit();
+                echo "充值订单 #{$order->id} 已激活。\n";
+            } catch (Exception $e) {
+                DB::rollBack();
+                echo "充值订单 #{$order->id} 激活失败: {$e->getMessage()}\n";
+            }
         }
 
         echo Tools::toDateTime(time()) . ' 充值订单激活处理完成' . PHP_EOL;
@@ -407,24 +496,36 @@ final class Cron
             if ($invoice === null) {
                 continue;
             }
-            // 标记订单为等待激活
-            if (in_array($invoice->status, ['paid_gateway', 'paid_balance', 'paid_admin'])) {
-                $order->status = 'pending_activation';
-                $order->update_time = time();
-                $order->save();
-                echo "已标记订单 #{$order->id} 为等待激活。\n";
-                continue;
-            }
-            // 取消超时未支付的订单和关联账单，跳过账单已经部分支付的订单
-            if ($order->create_time + 86400 < time() && $invoice->status !== 'partially_paid') {
-                $order->status = 'cancelled';
-                $order->update_time = time();
-                $order->save();
-                echo "已取消超时订单 #{$order->id}。\n";
-                $invoice->status = 'cancelled';
-                $invoice->update_time = time();
-                $invoice->save();
-                echo "已取消超时账单 #{$invoice->id}。\n";
+
+            try {
+                DB::beginTransaction();
+
+                // 标记订单为等待激活
+                if (in_array($invoice->status, ['paid_gateway', 'paid_balance', 'paid_admin'])) {
+                    $order->status = 'pending_activation';
+                    $order->update_time = time();
+                    $order->save();
+                    DB::commit();
+                    echo "已标记订单 #{$order->id} 为等待激活。\n";
+                    continue;
+                }
+
+                // 取消超时未支付的订单和关联账单，跳过账单已经部分支付的订单
+                if ($order->create_time + 86400 < time() && $invoice->status !== 'partially_paid') {
+                    $order->status = 'cancelled';
+                    $order->update_time = time();
+                    $order->save();
+                    echo "已取消超时订单 #{$order->id}。\n";
+                    $invoice->status = 'cancelled';
+                    $invoice->update_time = time();
+                    $invoice->save();
+                    echo "已取消超时账单 #{$invoice->id}。\n";
+                }
+
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+                echo "处理订单 #{$order->id} 失败: {$e->getMessage()}\n";
             }
         }
 
@@ -469,7 +570,7 @@ final class Cron
                     $_ENV['appName'] . '-免费流量重置通知',
                     '你好，你的免费流量已经被重置为' . $user->auto_reset_bandwidth . 'GB。'
                 );
-            } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+            } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
                 echo $e->getMessage() . PHP_EOL;
             }
 
@@ -521,7 +622,7 @@ final class Cron
                     $text_html,
                     'finance.tpl'
                 );
-            } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+            } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
                 echo $e->getMessage() . PHP_EOL;
             }
 
@@ -547,7 +648,7 @@ final class Cron
                 $text_html,
                 'finance.tpl'
             );
-        } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+        } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
             echo $e->getMessage() . PHP_EOL;
         }
 
@@ -570,7 +671,7 @@ final class Cron
                 $text_html,
                 'finance.tpl'
             );
-        } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+        } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
             echo $e->getMessage() . PHP_EOL;
         }
 
@@ -586,12 +687,14 @@ final class Cron
             $under_limit = false;
             $unit_text = '';
 
-            if ($_ENV['notify_limit_mode'] === 'per' &&
+            if (
+                $_ENV['notify_limit_mode'] === 'per' &&
                 $user_traffic_left / $user->transfer_enable * 100 < $_ENV['notify_limit_value']
             ) {
                 $under_limit = true;
                 $unit_text = '%';
-            } elseif ($_ENV['notify_limit_mode'] === 'mb' &&
+            } elseif (
+                $_ENV['notify_limit_mode'] === 'mb' &&
                 Tools::bToMB($user_traffic_left) < $_ENV['notify_limit_value']
             ) {
                 $under_limit = true;
@@ -607,7 +710,7 @@ final class Cron
                     );
 
                     $user->traffic_notified = true;
-                } catch (GuzzleException|ClientExceptionInterface|TelegramSDKException $e) {
+                } catch (GuzzleException | ClientExceptionInterface | TelegramSDKException $e) {
                     $user->traffic_notified = false;
                     echo $e->getMessage() . PHP_EOL;
                 }
