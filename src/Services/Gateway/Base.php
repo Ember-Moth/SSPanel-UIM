@@ -9,12 +9,16 @@ use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\User;
 use App\Models\UserMoneyLog;
+use App\Services\DB;
 use App\Services\Reward;
 use App\Utils\Tools;
+use Exception;
 use Psr\Http\Message\ResponseInterface;
 use Slim\Http\Response;
 use Slim\Http\ServerRequest;
 use voku\helper\AntiXSS;
+use function bccomp;
+use function bcsub;
 use function get_called_class;
 use function in_array;
 use function json_decode;
@@ -54,39 +58,62 @@ abstract class Base
     {
         $paylist = (new Paylist())->where('tradeno', $trade_no)->first();
 
-        if ($paylist?->status === 0) {
-            $paylist->datetime = time();
-            $paylist->status = 1;
-            $paylist->save();
+        if ($paylist === null) {
+            return;
         }
 
-        $invoice = (new Invoice())->where('id', $paylist?->invoice_id)->first();
+        $invoice = (new Invoice())->where('id', $paylist->invoice_id)->first();
 
-        if (($invoice?->status === 'unpaid' || $invoice?->status === 'partially_paid') &&
-            (int) $paylist?->total >= (int) $invoice?->price) {
-            $invoice->status = 'paid_gateway';
-            $invoice->update_time = time();
-            $invoice->pay_time = time();
-            $invoice->save();
+        if ($invoice === null) {
+            return;
         }
 
-        $user = (new User())->find($paylist?->userid);
+        $user = (new User())->find($paylist->userid);
 
-        if ($paylist?->total > $invoice?->price) {
-            $money_before = $user->money;
-            $user->money += $paylist?->total - $invoice?->price;
-            $user->save();
-            (new UserMoneyLog())->add(
-                $user->id,
-                $money_before,
-                $user->money,
-                $paylist?->total - $invoice?->price,
-                '超额支付账单 #' . $invoice?->id
-            );
+        if ($user === null) {
+            return;
         }
 
-        if ($user !== null && $user->ref_by > 0 && Config::obtain('invite_mode') === 'reward') {
-            Reward::issuePaybackReward($user->id, $user->ref_by, $invoice?->price, $paylist?->invoice_id);
+        try {
+            DB::beginTransaction();
+
+            if ($paylist->status === 0) {
+                $paylist->datetime = time();
+                $paylist->status = 1;
+                $paylist->save();
+            }
+
+            if (($invoice->status === 'unpaid' || $invoice->status === 'partially_paid') &&
+                bccomp((string) $paylist->total, (string) $invoice->price, 2) >= 0
+            ) {
+                $invoice->status = 'paid_gateway';
+                $invoice->update_time = time();
+                $invoice->pay_time = time();
+                $invoice->save();
+            }
+
+            if (bccomp((string) $paylist->total, (string) $invoice->price, 2) > 0) {
+                $money_before = $user->money;
+                $overpaid = (float) bcsub((string) $paylist->total, (string) $invoice->price, 2);
+                $user->money += $overpaid;
+                $user->save();
+                (new UserMoneyLog())->add(
+                    $user->id,
+                    $money_before,
+                    $user->money,
+                    $overpaid,
+                    '超额支付账单 #' . $invoice->id
+                );
+            }
+
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+            return;
+        }
+
+        if ($user->ref_by > 0 && Config::obtain('invite_mode') === 'reward') {
+            Reward::issuePaybackReward($user->id, $user->ref_by, $invoice->price, $paylist->invoice_id);
         }
     }
 

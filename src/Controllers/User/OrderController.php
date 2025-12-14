@@ -69,6 +69,11 @@ final class OrderController extends BaseController
         }
 
         $product = (new Product())->where('id', $product_id)->first();
+
+        if ($product === null) {
+            return $response->withRedirect('/user/product');
+        }
+
         $product->type_text = $product->type();
         $product->content = json_decode($product->content);
 
@@ -247,56 +252,69 @@ final class OrderController extends BaseController
             }
         }
 
-        $order = new Order();
-        $order->user_id = $user->id;
-        $order->product_id = $product->id;
-        $order->product_type = $product->type;
-        $order->product_name = $product->name;
-        $order->product_content = $product->content;
-        $order->coupon = $coupon_raw;
-        $order->price = $buy_price;
-        $order->status = $buy_price === 0 ? 'pending_activation' : 'pending_payment';
-        $order->create_time = time();
-        $order->update_time = time();
-        $order->save();
+        try {
+            DB::beginTransaction();
 
-        $invoice_content = [];
-        $invoice_content[] = [
-            'content_id' => 0,
-            'name' => $product->name,
-            'price' => $product->price,
-        ];
+            $order = new Order();
+            $order->user_id = $user->id;
+            $order->product_id = $product->id;
+            $order->product_type = $product->type;
+            $order->product_name = $product->name;
+            $order->product_content = $product->content;
+            $order->coupon = $coupon_raw;
+            $order->price = $buy_price;
+            $order->status = $buy_price === 0 ? 'pending_activation' : 'pending_payment';
+            $order->create_time = time();
+            $order->update_time = time();
+            $order->save();
 
-        if ($coupon_raw !== '') {
+            $invoice_content = [];
             $invoice_content[] = [
-                'content_id' => 1,
-                'name' => '优惠码 ' . $coupon_raw,
-                'price' => '-' . $discount,
+                'content_id' => 0,
+                'name' => $product->name,
+                'price' => $product->price,
             ];
-        }
 
-        $invoice = new Invoice();
-        $invoice->user_id = $user->id;
-        $invoice->order_id = $order->id;
-        $invoice->content = json_encode($invoice_content);
-        $invoice->price = $buy_price;
-        $invoice->status = $buy_price === 0 ? 'paid_gateway' : 'unpaid';
-        $invoice->create_time = time();
-        $invoice->update_time = time();
-        $invoice->pay_time = 0;
-        $invoice->type = 'product';
-        $invoice->save();
+            if ($coupon_raw !== '') {
+                $invoice_content[] = [
+                    'content_id' => 1,
+                    'name' => '优惠码 ' . $coupon_raw,
+                    'price' => '-' . $discount,
+                ];
+            }
 
-        if ($product->stock > 0) {
-            $product->stock -= 1;
-        }
+            $invoice = new Invoice();
+            $invoice->user_id = $user->id;
+            $invoice->order_id = $order->id;
+            $invoice->content = json_encode($invoice_content);
+            $invoice->price = $buy_price;
+            $invoice->status = $buy_price === 0 ? 'paid_gateway' : 'unpaid';
+            $invoice->create_time = time();
+            $invoice->update_time = time();
+            $invoice->pay_time = 0;
+            $invoice->type = 'product';
+            $invoice->save();
 
-        $product->sale_count += 1;
-        $product->save();
+            if ($product->stock > 0) {
+                $product->stock -= 1;
+            }
 
-        if ($coupon_raw !== '') {
-            $coupon->use_count += 1;
-            $coupon->save();
+            $product->sale_count += 1;
+            $product->save();
+
+            if ($coupon_raw !== '') {
+                $coupon->use_count += 1;
+                $coupon->save();
+            }
+
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '订单创建失败，请稍后再试',
+            ]);
         }
 
         return $response->withHeader('HX-Redirect', '/user/invoice/' . $invoice->id . '/view');

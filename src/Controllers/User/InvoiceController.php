@@ -8,6 +8,7 @@ use App\Controllers\BaseController;
 use App\Models\Invoice;
 use App\Models\Paylist;
 use App\Models\UserMoneyLog;
+use App\Services\DB;
 use App\Services\Payment;
 use App\Utils\Tools;
 use Exception;
@@ -112,38 +113,51 @@ final class InvoiceController extends BaseController
 
         // 组合支付
         if ($user->money > 0) {
-            $money_before = $user->money;
+            try {
+                DB::beginTransaction();
 
-            if ($user->money >= $invoice->price) {
-                $paid = $invoice->price;
-                $invoice->status = 'paid_balance';
-            } else {
-                $paid = $user->money;
-                $invoice->status = 'partially_paid';
-                $invoice->price -= $paid;
-                $invoice_content = json_decode($invoice->content);
-                $invoice_content[] = [
-                    'content_id' => count($invoice_content),
-                    'name' => '余额部分支付',
-                    'price' => '-' . $paid,
-                ];
-                $invoice->content = json_encode($invoice_content);
+                $money_before = $user->money;
+
+                if ($user->money >= $invoice->price) {
+                    $paid = $invoice->price;
+                    $invoice->status = 'paid_balance';
+                } else {
+                    $paid = $user->money;
+                    $invoice->status = 'partially_paid';
+                    $invoice->price -= $paid;
+                    $invoice_content = json_decode($invoice->content);
+                    $invoice_content[] = [
+                        'content_id' => count($invoice_content),
+                        'name' => '余额部分支付',
+                        'price' => '-' . $paid,
+                    ];
+                    $invoice->content = json_encode($invoice_content);
+                }
+
+                $user->money -= $paid;
+                $user->save();
+
+                (new UserMoneyLog())->add(
+                    $user->id,
+                    $money_before,
+                    (float) $user->money,
+                    -$paid,
+                    '支付账单 #' . $invoice->id
+                );
+
+                $invoice->update_time = time();
+                $invoice->pay_time = time();
+                $invoice->save();
+
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+
+                return $response->withJson([
+                    'ret' => 0,
+                    'msg' => '支付失败，请稍后再试',
+                ]);
             }
-
-            $user->money -= $paid;
-            $user->save();
-
-            (new UserMoneyLog())->add(
-                $user->id,
-                $money_before,
-                (float) $user->money,
-                -$paid,
-                '支付账单 #' . $invoice->id
-            );
-
-            $invoice->update_time = time();
-            $invoice->pay_time = time();
-            $invoice->save();
         } else {
             return $response->withJson([
                 'ret' => 0,

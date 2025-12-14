@@ -250,10 +250,41 @@ final class Cron
             }
 
             if ($activated_order->update_time + $content->time * 86400 < time()) {
-                $activated_order->status = 'expired';
-                $activated_order->update_time = time();
-                $activated_order->save();
-                echo "TABP订单 #{$activated_order->id} 已过期。\n";
+                try {
+                    DB::beginTransaction();
+
+                    $activated_order->status = 'expired';
+                    $activated_order->update_time = time();
+                    $activated_order->save();
+
+                    // 检查用户是否还有其他激活的TABP订单
+                    $user = (new User())->find($activated_order->user_id);
+
+                    if ($user !== null) {
+                        $other_activated = (new Order())->where('user_id', $user->id)
+                            ->where('status', 'activated')
+                            ->where('product_type', 'tabp')
+                            ->where('id', '!=', $activated_order->id)
+                            ->exists();
+
+                        // 如果没有其他激活的TABP订单，降级用户
+                        if (! $other_activated) {
+                            $user->class = 0;
+                            $user->transfer_enable = 0;
+                            $user->node_group = 0;
+                            $user->node_speedlimit = 0;
+                            $user->node_iplimit = 0;
+                            $user->save();
+                            echo "用户 #{$user->id} 已降级（TABP套餐过期）。\n";
+                        }
+                    }
+
+                    DB::commit();
+                    echo "TABP订单 #{$activated_order->id} 已过期。\n";
+                } catch (Exception $e) {
+                    DB::rollBack();
+                    echo "TABP订单 #{$activated_order->id} 过期处理失败: {$e->getMessage()}\n";
+                }
             }
         }
 
