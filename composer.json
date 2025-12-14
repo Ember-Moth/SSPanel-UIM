@@ -46,7 +46,8 @@
         "symfony/translation": "^7",
         "twig/twig": "^3",
         "vectorface/googleauthenticator": "^3",
-        "voku/anti-xss": "^4"
+        "voku/anti-xss": "^4",
+      "ext-pcntl": "*"
     },
     "autoload": {
         "psr-4": {
