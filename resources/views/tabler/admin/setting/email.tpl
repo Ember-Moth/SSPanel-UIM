@@ -171,21 +171,21 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Username</label>
+                                            <label class="form-label col-3 col-form-label">用户名</label>
                                             <div class="col">
                                                 <input id="smtp_username" type="text" class="form-control"
                                                        value="{$settings['smtp_username']}">
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Password</label>
+                                            <label class="form-label col-3 col-form-label">密码</label>
                                             <div class="col">
                                                 <input id="smtp_password" type="text" class="form-control"
                                                        value="{$settings['smtp_password']}">
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Port</label>
+                                            <label class="form-label col-3 col-form-label">端口</label>
                                             <div class="col">
                                                 <select id="smtp_port" class="col form-select"
                                                         value="{$settings['smtp_port']}">
@@ -211,21 +211,21 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Name</label>
+                                            <label class="form-label col-3 col-form-label">发件人名称</label>
                                             <div class="col">
                                                 <input id="smtp_name" type="text" class="form-control"
                                                        value="{$settings['smtp_name']}">
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Sener</label>
+                                            <label class="form-label col-3 col-form-label">发件地址</label>
                                             <div class="col">
                                                 <input id="smtp_sender" type="text" class="form-control"
                                                        value="{$settings['smtp_sender']}">
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Enable TLS/SSL</label>
+                                            <label class="form-label col-3 col-form-label">启用 TLS/SSL</label>
                                             <div class="col">
                                                 <select id="smtp_ssl" class="col form-select"
                                                         value="{$settings['smtp_ssl']}">
@@ -237,7 +237,7 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">BBC</label>
+                                            <label class="form-label col-3 col-form-label">抄送</label>
                                             <div class="col">
                                                 <input id="smtp_bbc" type="text" class="form-control"
                                                        value="{$settings['smtp_bbc']}">
@@ -248,7 +248,7 @@
                                 <div class="tab-pane" id="mailgun">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api Key</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="mailgun_key" type="text" class="form-control"
                                                        value="{$settings['mailgun_key']}">
@@ -280,7 +280,7 @@
                                 <div class="tab-pane" id="sendgrid">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api Key</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="sendgrid_key" type="text" class="form-control"
                                                        value="{$settings['sendgrid_key']}">
@@ -312,7 +312,7 @@
                                             </div>
                                         </div>
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api Key</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="postal_key" type="text" class="form-control"
                                                        value="{$settings['postal_key']}">
@@ -369,7 +369,7 @@
                                 <div class="tab-pane" id="mailchimp">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api Key</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="mailchimp_key" type="text" class="form-control"
                                                        value="{$settings['mailchimp_key']}">
@@ -433,7 +433,7 @@
                                 <div class="tab-pane" id="postmark">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api Key</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="postmark_key" type="text" class="form-control"
                                                        value="{$settings['postmark_key']}">
@@ -458,7 +458,7 @@
                                 <div class="tab-pane" id="resend">
                                     <div class="card-body">
                                         <div class="form-group mb-3 row">
-                                            <label class="form-label col-3 col-form-label">Api Key</label>
+                                            <label class="form-label col-3 col-form-label">API Key</label>
                                             <div class="col">
                                                 <input id="resend_api_key" type="text" class="form-control"
                                                        value="{$settings['resend_api_key']}">
