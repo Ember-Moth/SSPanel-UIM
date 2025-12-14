@@ -7,6 +7,7 @@ namespace App\Controllers\User;
 use App\Controllers\BaseController;
 use App\Models\GiftCard;
 use App\Models\UserMoneyLog;
+use App\Services\DB;
 use App\Utils\Tools;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
@@ -59,22 +60,35 @@ final class MoneyController extends BaseController
             ]);
         }
 
-        $giftcard->status = 1;
-        $giftcard->use_time = time();
-        $giftcard->use_user = $user->id;
-        $giftcard->save();
+        try {
+            DB::beginTransaction();
 
-        $money_before = $user->money;
-        $user->money += $giftcard->balance;
-        $user->save();
+            $giftcard->status = 1;
+            $giftcard->use_time = time();
+            $giftcard->use_user = $user->id;
+            $giftcard->save();
 
-        (new UserMoneyLog())->add(
-            $user->id,
-            $money_before,
-            (float) $user->money,
-            $giftcard->balance,
-            '礼品卡充值 ' . $giftcard->card
-        );
+            $money_before = $user->money;
+            $user->money += $giftcard->balance;
+            $user->save();
+
+            (new UserMoneyLog())->add(
+                $user->id,
+                $money_before,
+                (float) $user->money,
+                $giftcard->balance,
+                '礼品卡充值 ' . $giftcard->card
+            );
+
+            DB::commit();
+        } catch (Exception $e) {
+            DB::rollBack();
+
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '充值失败，请稍后再试',
+            ]);
+        }
 
         return $response->withJson([
             'ret' => 1,

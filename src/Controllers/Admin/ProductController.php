@@ -82,6 +82,11 @@ final class ProductController extends BaseController
     {
         $id = $args['id'];
         $product = (new Product())->find($id);
+
+        if ($product === null) {
+            return $response->withRedirect('/admin/product');
+        }
+
         $content = json_decode($product->content);
         $limit = json_decode($product->limit);
 

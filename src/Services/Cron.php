@@ -435,7 +435,12 @@ final class Cron
 
                 // 激活时间包
                 $user->class = $content->class;
+                // 如果用户会员已过期，从当前时间开始计算
                 $old_class_expire = new DateTime($user->class_expire);
+                $now = new DateTime();
+                if ($old_class_expire < $now) {
+                    $old_class_expire = $now;
+                }
                 $user->class_expire = $old_class_expire
                     ->modify('+' . $content->class_time . ' days')->format('Y-m-d H:i:s');
                 $user->node_group = $content->node_group;

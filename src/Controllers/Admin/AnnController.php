@@ -27,16 +27,16 @@ use const PHP_EOL;
 final class AnnController extends BaseController
 {
     private static array $details =
-        [
-            'field' => [
-                'op' => '操作',
-                'id' => 'ID',
-                'status' => '状态',
-                'sort' => '排序',
-                'date' => '日期',
-                'content' => '内容（节选）',
-            ],
-        ];
+    [
+        'field' => [
+            'op' => '操作',
+            'id' => 'ID',
+            'status' => '状态',
+            'sort' => '排序',
+            'date' => '日期',
+            'content' => '内容（节选）',
+        ],
+    ];
 
     private static array $update_field = [
         'status',
@@ -148,9 +148,15 @@ final class AnnController extends BaseController
      */
     public function edit(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
+        $ann = (new Ann())->find($args['id']);
+
+        if ($ann === null) {
+            return $response->withRedirect('/admin/announcement');
+        }
+
         return $response->write(
             $this->view()
-                ->assign('ann', (new Ann())->find($args['id']))
+                ->assign('ann', $ann)
                 ->assign('update_field', self::$update_field)
                 ->fetch('admin/announcement/edit.tpl')
         );
@@ -218,7 +224,16 @@ final class AnnController extends BaseController
      */
     public function delete(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
-        if ((new Ann())->find($args['id'])->delete()) {
+        $ann = (new Ann())->find($args['id']);
+
+        if ($ann === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '公告不存在',
+            ]);
+        }
+
+        if ($ann->delete()) {
             return $response->withJson([
                 'ret' => 1,
                 'msg' => '删除成功',

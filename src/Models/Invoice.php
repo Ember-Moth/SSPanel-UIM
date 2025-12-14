@@ -4,6 +4,8 @@ declare(strict_types=1);
 
 namespace App\Models;
 
+use App\Services\DB;
+use Exception;
 use Illuminate\Database\Query\Builder;
 use function in_array;
 use function json_decode;
@@ -55,16 +57,28 @@ final class Invoice extends Model
         };
     }
 
-    public function refundToBalance(): void
+    public function refundToBalance(): bool
     {
-        if (in_array($this->status, ['paid_gateway', 'paid_balance', 'paid_admin'])) {
-            $user = (new User())->find($this->user_id);
+        if (! in_array($this->status, ['paid_gateway', 'paid_balance', 'paid_admin'])) {
+            return false;
+        }
+
+        $user = (new User())->find($this->user_id);
+
+        if ($user === null) {
+            return false;
+        }
+
+        try {
+            DB::beginTransaction();
+
+            $money_before = $user->money;
             $user->money += $this->price;
             $user->save();
 
             (new UserMoneyLog())->add(
                 $user->id,
-                $user->money - $this->price,
+                $money_before,
                 $user->money,
                 $this->price,
                 '账单 #' . $this->id . ' 退款至账户余额'
@@ -81,6 +95,12 @@ final class Invoice extends Model
             $this->status = 'refunded_balance';
             $this->update_time = time();
             $this->save();
+
+            DB::commit();
+            return true;
+        } catch (Exception $e) {
+            DB::rollBack();
+            return false;
         }
     }
 }

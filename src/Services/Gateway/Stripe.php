@@ -22,6 +22,7 @@ use Stripe\StripeClient;
 use Stripe\Webhook;
 use UnexpectedValueException;
 use voku\helper\AntiXSS;
+use function bcmul;
 use function in_array;
 
 final class Stripe extends Base
@@ -60,7 +61,8 @@ final class Stripe extends Base
 
         $price = $invoice->price;
 
-        if ($price < Config::obtain('stripe_min_recharge') ||
+        if (
+            $price < Config::obtain('stripe_min_recharge') ||
             $price > Config::obtain('stripe_max_recharge')
         ) {
             return $response->withJson([
@@ -87,21 +89,38 @@ final class Stripe extends Base
 
         try {
             $exchange_amount = (new Exchange())->exchange((float) $price, 'CNY', $stripe_currency);
-        } catch (GuzzleException|RedisException) {
+        } catch (GuzzleException | RedisException) {
             return $response->withJson([
                 'ret' => 0,
                 'msg' => '汇率获取失败',
             ]);
         }
         // https://docs.stripe.com/currencies?presentment-currency=US#zero-decimal
-        if (! in_array(
+        // Zero-decimal currencies don't need to be multiplied by 100
+        $is_zero_decimal = in_array(
             $stripe_currency,
-            ['BIF', 'CLP', 'DJF', 'GNF', 'JPY', 'KMF', 'KRW',
-                'MGA', 'PYG', 'RWF', 'UGX', 'VND', 'VUV', 'XAF', 'XOF', 'XPF',
+            [
+                'BIF',
+                'CLP',
+                'DJF',
+                'GNF',
+                'JPY',
+                'KMF',
+                'KRW',
+                'MGA',
+                'PYG',
+                'RWF',
+                'UGX',
+                'VND',
+                'VUV',
+                'XAF',
+                'XOF',
+                'XPF',
             ]
-        )) {
-            $exchange_amount *= 100;
-        }
+        );
+
+        // Only multiply by 100 for non-zero-decimal currencies
+        $unit_amount = $is_zero_decimal ? (int) $exchange_amount : (int) bcmul((string) $exchange_amount, '100', 0);
 
         $stripe = new StripeClient(Config::obtain('stripe_api_key'));
         $session = null;
@@ -116,7 +135,7 @@ final class Stripe extends Base
                             'product_data' => [
                                 'name' => 'Invoice #' . $invoice_id,
                             ],
-                            'unit_amount' => (int) ($exchange_amount * 100),
+                            'unit_amount' => $unit_amount,
                         ],
                         'quantity' => 1,
                     ],

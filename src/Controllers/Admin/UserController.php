@@ -147,7 +147,7 @@ final class UserController extends BaseController
 
         return $response->withJson([
             'ret' => 1,
-            'msg' => '添加成功，用户邮箱：' . $email . ' 密码：'.$password,
+            'msg' => '添加成功，用户邮箱：' . $email . ' 密码：' . $password,
         ]);
     }
 
@@ -157,6 +157,11 @@ final class UserController extends BaseController
     public function edit(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $user = (new User())->find($args['id']);
+
+        if ($user === null) {
+            return $response->withRedirect('/admin/user');
+        }
+
         $user->last_use_time = Tools::toDateTime($user->last_use_time);
         $user->last_check_in_time = Tools::toDateTime($user->last_check_in_time);
         $user->last_login_time = Tools::toDateTime($user->last_login_time);
@@ -176,6 +181,13 @@ final class UserController extends BaseController
         $id = (int) $args['id'];
         $user = (new User())->find($id);
 
+        if ($user === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '用户不存在',
+            ]);
+        }
+
         if ($request->getParam('pass') !== '' && $request->getParam('pass') !== null) {
             $user->pass = Hash::passwordHash($request->getParam('pass'));
 
@@ -184,7 +196,8 @@ final class UserController extends BaseController
             }
         }
 
-        if ($request->getParam('money') !== '' &&
+        if (
+            $request->getParam('money') !== '' &&
             $request->getParam('money') !== null &&
             (float) $request->getParam('money') !== $user->money
         ) {
@@ -233,6 +246,13 @@ final class UserController extends BaseController
     {
         $id = $args['id'];
         $user = (new User())->find((int) $id);
+
+        if ($user === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '用户不存在',
+            ]);
+        }
 
         if (! $user->kill()) {
             return $response->withJson([

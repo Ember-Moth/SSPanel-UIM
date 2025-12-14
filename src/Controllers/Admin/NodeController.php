@@ -166,6 +166,10 @@ final class NodeController extends BaseController
     {
         $node = (new Node())->find($args['id']);
 
+        if ($node === null) {
+            return $response->withRedirect('/admin/node');
+        }
+
         $dynamic_rate_config = json_decode($node->dynamic_rate_config);
         $node->max_rate = $dynamic_rate_config?->max_rate ?? 1;
         $node->max_rate_time = $dynamic_rate_config?->max_rate_time ?? 22;
@@ -189,6 +193,13 @@ final class NodeController extends BaseController
     public function update(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $node = (new Node())->find($args['id']);
+
+        if ($node === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '节点不存在',
+            ]);
+        }
 
         $node->name = $request->getParam('name');
         $node->node_group = $request->getParam('node_group') ?? 0;
@@ -251,6 +262,14 @@ final class NodeController extends BaseController
     public function resetPassword(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $node = (new Node())->find($args['id']);
+
+        if ($node === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '节点不存在',
+            ]);
+        }
+
         $node->password = Tools::genRandomChar(32);
         $node->save();
 
@@ -263,6 +282,14 @@ final class NodeController extends BaseController
     public function resetBandwidth(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $node = (new Node())->find($args['id']);
+
+        if ($node === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '节点不存在',
+            ]);
+        }
+
         $node->node_bandwidth = 0;
         $node->save();
 
@@ -278,6 +305,13 @@ final class NodeController extends BaseController
     public function delete(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $node = (new Node())->find($args['id']);
+
+        if ($node === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '节点不存在',
+            ]);
+        }
 
         if (! $node->delete()) {
             return $response->withJson([

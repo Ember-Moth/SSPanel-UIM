@@ -205,7 +205,16 @@ final class CouponController extends BaseController
     public function delete(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $coupon_id = $args['id'];
-        (new UserCoupon())->find($coupon_id)->delete();
+        $coupon = (new UserCoupon())->find($coupon_id);
+
+        if ($coupon === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '优惠码不存在',
+            ]);
+        }
+
+        $coupon->delete();
 
         return $response->withJson([
             'ret' => 1,
@@ -216,7 +225,15 @@ final class CouponController extends BaseController
     public function disable(ServerRequest $request, Response $response, array $args): ResponseInterface
     {
         $coupon_id = $args['id'];
-        $coupon = (new UserCoupon())->find($coupon_id)->first();
+        $coupon = (new UserCoupon())->find($coupon_id);
+
+        if ($coupon === null) {
+            return $response->withJson([
+                'ret' => 0,
+                'msg' => '优惠码不存在',
+            ]);
+        }
+
         $limit = json_decode($coupon->limit);
         $limit->disabled = 1;
         $coupon->limit = json_encode($limit);
@@ -250,7 +267,7 @@ final class CouponController extends BaseController
             $coupon->product_id = $limit->product_id;
             $coupon->use_time = (int) $limit->use_time < 0 ? '不限次数' : $limit->use_time;
             $coupon->total_use_time = ! property_exists($limit, 'total_use_time') ||
-            (int) $limit->total_use_time < 0 ? '不限次数' : $limit->total_use_time;
+                (int) $limit->total_use_time < 0 ? '不限次数' : $limit->total_use_time;
             $coupon->new_user = $limit->new_user === 1 ? '是' : '否';
             $coupon->disabled = $limit->disabled === 1 ? '是' : '否';
             $coupon->create_time = Tools::toDateTime((int) $coupon->create_time);

@@ -8,6 +8,7 @@ use App\Models\Config;
 use App\Models\Payback;
 use App\Models\User;
 use App\Models\UserMoneyLog;
+use App\Services\DB;
 use App\Utils\Tools;
 use Exception;
 use function random_int;
@@ -62,25 +63,33 @@ final class Reward
         }
 
         if ($ref_get !== 0) {
-            $money_before = $ref_user->money;
-            $ref_user->money += $ref_get;
-            $ref_user->save();
-            // 添加余额记录
-            (new UserMoneyLog())->add(
-                $ref_user->id,
-                (float) $money_before,
-                (float) $ref_user->money,
-                $ref_get,
-                '邀请用户 #' . $user_id . ' 返利',
-            );
-            // 添加返利记录
-            (new Payback())->add(
-                (float) $total,
-                $user_id,
-                $ref_user_id,
-                (float) $ref_get,
-                $invoice_id,
-            );
+            try {
+                DB::beginTransaction();
+
+                $money_before = $ref_user->money;
+                $ref_user->money += $ref_get;
+                $ref_user->save();
+                // 添加余额记录
+                (new UserMoneyLog())->add(
+                    $ref_user->id,
+                    (float) $money_before,
+                    (float) $ref_user->money,
+                    $ref_get,
+                    '邀请用户 #' . $user_id . ' 返利',
+                );
+                // 添加返利记录
+                (new Payback())->add(
+                    (float) $total,
+                    $user_id,
+                    $ref_user_id,
+                    (float) $ref_get,
+                    $invoice_id,
+                );
+
+                DB::commit();
+            } catch (Exception $e) {
+                DB::rollBack();
+            }
         }
     }
 
