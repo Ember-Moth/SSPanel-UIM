@@ -12,7 +12,6 @@ use App\Models\UserMoneyLog;
 use App\Services\DB;
 use App\Services\OrderActivation;
 use App\Services\Payment;
-use App\Services\Queue\Jobs\ActivateOrderJob;
 use App\Utils\Tools;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
@@ -176,7 +175,7 @@ final class InvoiceController extends BaseController
                 $order->update_time = time();
                 $order->save();
                 // 尝试立即激活订单
-                ActivateOrderJob::dispatch($order->id);
+                OrderActivation::activateOrder($order);
             }
 
             return $response->withHeader('HX-Redirect', '/user/invoice');
