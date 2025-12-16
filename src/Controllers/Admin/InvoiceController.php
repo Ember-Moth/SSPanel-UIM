@@ -9,6 +9,7 @@ use App\Models\Invoice;
 use App\Models\Order;
 use App\Models\Paylist;
 use App\Services\OrderActivation;
+use App\Services\Queue\Jobs\ActivateOrderJob;
 use App\Utils\Tools;
 use Exception;
 use Psr\Http\Message\ResponseInterface;
@@ -124,7 +125,7 @@ final class InvoiceController extends BaseController
         $invoice->save();
 
         // 尝试立即激活订单
-        OrderActivation::activateOrder($order);
+        ActivateOrderJob::dispatch($order->id);
 
         return $response->withJson([
             'ret' => 1,

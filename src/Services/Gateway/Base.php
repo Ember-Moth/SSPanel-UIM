@@ -12,6 +12,7 @@ use App\Models\User;
 use App\Models\UserMoneyLog;
 use App\Services\DB;
 use App\Services\OrderActivation;
+use App\Services\Queue\Jobs\ActivateOrderJob;
 use App\Services\Reward;
 use App\Utils\Tools;
 use Exception;
@@ -121,7 +122,7 @@ abstract class Base
             $order->update_time = time();
             $order->save();
             // 尝试立即激活订单
-            OrderActivation::activateOrder($order);
+            ActivateOrderJob::dispatch($order->id);
         }
 
         if ($user->ref_by > 0 && Config::obtain('invite_mode') === 'reward') {
