@@ -167,7 +167,7 @@
                 fill: {
                     opacity: 1,
                 },
-                series: [{$total_user-$checkin_user}, {$checkin_user-$today_checkin_user}, {$today_checkin_user}],
+                series: [{$never_checkin_user}, {$history_checkin_user}, {$today_checkin_user}],
                 labels: ["没有签到", "曾经签到", "今日签到"],
                 grid: {
                     strokeDashArray: 3,
@@ -207,7 +207,7 @@
                 fill: {
                     opacity: 1,
                 },
-                series: [{$alive_node}, {$total_node-$alive_node}],
+                series: [{$alive_node}, {$offline_node}],
                 labels: ["在线", "离线"],
                 grid: {
                     strokeDashArray: 2,
@@ -287,7 +287,7 @@
                 fill: {
                     opacity: 1,
                 },
-                series: [{$raw_today_traffic}, {$raw_last_traffic}, {$raw_unused_traffic}],
+                series: [{$today_traffic_gb}, {$last_traffic_gb}, {$unused_traffic_gb}],
                 labels: ["今日已用({$today_traffic})", "过去已用({$last_traffic})", "剩余流量({$unused_traffic})"],
                 grid: {
                     strokeDashArray: 3,

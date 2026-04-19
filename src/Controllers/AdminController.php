@@ -17,46 +17,54 @@ final class AdminController extends BaseController
      *
      * @throws Exception
      */
-    public function index(ServerRequest $request, Response $response, array $args): ResponseInterface
-    {
-        $today_income = Analytics::getIncome('today');
-        $yesterday_income = Analytics::getIncome('yesterday');
-        $this_month_income = Analytics::getIncome('this month');
-        $total_income = Analytics::getIncome('total');
-        $total_user = Analytics::getTotalUser();
-        $checkin_user = Analytics::getCheckinUser();
-        $today_checkin_user = Analytics::getTodayCheckinUser();
-        $inactive_user = Analytics::getInactiveUser();
-        $active_user = Analytics::getActiveUser();
-        $total_node = Analytics::getTotalNode();
-        $alive_node = Analytics::getAliveNode();
-        $raw_today_traffic = Analytics::getRawGbTodayTrafficUsage();
-        $raw_last_traffic = Analytics::getRawGbLastTrafficUsage();
-        $raw_unused_traffic = Analytics::getRawGbUnusedTrafficUsage();
-        $today_traffic = Analytics::getTodayTrafficUsage();
-        $last_traffic = Analytics::getLastTrafficUsage();
-        $unused_traffic = Analytics::getUnusedTrafficUsage();
+    public function index(
+        ServerRequest $request,
+        Response $response,
+        array $args,
+    ): ResponseInterface {
+        $income_stats = Analytics::getDashboardIncomeStats();
+        $user_stats = Analytics::getDashboardUserStats();
+        $node_stats = Analytics::getDashboardNodeStats();
+        $traffic_stats = Analytics::getDashboardTrafficStats();
 
         return $response->write(
             $this->view()
-                ->assign('today_income', $today_income)
-                ->assign('yesterday_income', $yesterday_income)
-                ->assign('this_month_income', $this_month_income)
-                ->assign('total_income', $total_income)
-                ->assign('total_user', $total_user)
-                ->assign('checkin_user', $checkin_user)
-                ->assign('today_checkin_user', $today_checkin_user)
-                ->assign('inactive_user', $inactive_user)
-                ->assign('active_user', $active_user)
-                ->assign('total_node', $total_node)
-                ->assign('alive_node', $alive_node)
-                ->assign('raw_today_traffic', $raw_today_traffic)
-                ->assign('raw_last_traffic', $raw_last_traffic)
-                ->assign('raw_unused_traffic', $raw_unused_traffic)
-                ->assign('today_traffic', $today_traffic)
-                ->assign('last_traffic', $last_traffic)
-                ->assign('unused_traffic', $unused_traffic)
-                ->fetch('admin/index.tpl')
+                ->assign("today_income", $income_stats["today_income"])
+                ->assign("yesterday_income", $income_stats["yesterday_income"])
+                ->assign(
+                    "this_month_income",
+                    $income_stats["this_month_income"],
+                )
+                ->assign("total_income", $income_stats["total_income"])
+                ->assign("total_user", $user_stats["total_user"])
+                ->assign("checkin_user", $user_stats["checkin_user"])
+                ->assign(
+                    "today_checkin_user",
+                    $user_stats["today_checkin_user"],
+                )
+                ->assign(
+                    "never_checkin_user",
+                    $user_stats["never_checkin_user"],
+                )
+                ->assign(
+                    "history_checkin_user",
+                    $user_stats["history_checkin_user"],
+                )
+                ->assign("inactive_user", $user_stats["inactive_user"])
+                ->assign("active_user", $user_stats["active_user"])
+                ->assign("total_node", $node_stats["total_node"])
+                ->assign("alive_node", $node_stats["alive_node"])
+                ->assign("offline_node", $node_stats["offline_node"])
+                ->assign("today_traffic_gb", $traffic_stats["today_traffic_gb"])
+                ->assign("last_traffic_gb", $traffic_stats["last_traffic_gb"])
+                ->assign(
+                    "unused_traffic_gb",
+                    $traffic_stats["unused_traffic_gb"],
+                )
+                ->assign("today_traffic", $traffic_stats["today_traffic"])
+                ->assign("last_traffic", $traffic_stats["last_traffic"])
+                ->assign("unused_traffic", $traffic_stats["unused_traffic"])
+                ->fetch("admin/index.tpl"),
         );
     }
 }
