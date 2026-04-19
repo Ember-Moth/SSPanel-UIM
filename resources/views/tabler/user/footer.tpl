@@ -97,7 +97,7 @@
             showToast('已复制到剪切板');
             e.clearSelection();
         });
-        
+
         clipboard.on('error', function(e) {
             console.error('复制失败:', e);
             const text = e.trigger.getAttribute('data-clipboard-text');
@@ -173,7 +173,7 @@
             const isSuccess = res.ret === 1;
             const messageId = isSuccess ? "success-message" : "fail-message";
             const dialog = isSuccess ? window.successDialog : window.failDialog;
-            
+
             document.getElementById(messageId).textContent = res.msg;
             if (dialog) {
                 dialog.show();
@@ -189,8 +189,6 @@
 <script>console.table([['数据库查询', '执行时间'], ['{count($queryLog)} 次', '{$optTime} ms']])</script>
 
 {include file='live_chat.tpl'}
-
-{include file='telemetry.tpl'}
 
 </body>
 
